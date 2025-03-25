@@ -77,15 +77,15 @@ void UseShader(shaderStruct* shader)
   glUseProgram(shader->ID);
 }
 
-void SetBool(shaderStruct *shader, const char *name, bool value)
+void SetShaderBool(shaderStruct *shader, const char *name, bool value)
 {
   glUniform1i(glGetUniformLocation(shader->ID, name), (int)value);
 }
-void SetFloat(shaderStruct *shader, const char *name, float value)
+void SetShaderFloat(shaderStruct *shader, const char *name, float value)
 {
   glUniform1f(glGetUniformLocation(shader->ID, name), value);
 }
-void SetInt(shaderStruct *shader, const char *name, int value)
+void SetShaderInt(shaderStruct *shader, const char *name, int value)
 {
   glUniform1i(glGetUniformLocation(shader->ID, name), value);
 }
@@ -94,7 +94,19 @@ void DeleteShader(shaderStruct *shader)
   shader = NULL;
 }
 
-void SetMatrix4f(shaderStruct* shader, const char* name, mat4 matrix)
+void SetShaderFloat3(shaderStruct* shader, const char* name, vec3 floats)
+{
+  glUniform3f(glGetUniformLocation(shader->ID, name),floats[0], floats[1], floats[2]);
+}
+void SetShaderFloat4(shaderStruct* shader, const char* name, vec4 floats)
+{
+  glUniform4f(glGetUniformLocation(shader->ID, name),floats[0], floats[1], floats[2], floats[3]);
+}
+void SetShaderMatrix4f(shaderStruct* shader, const char* name, mat4 matrix)
 {
   glUniformMatrix4fv(glGetUniformLocation(shader->ID, name), 1, GL_FALSE, matrix[0]);
+}
+void SetShaderMatrix3f(shaderStruct* shader, const char* name, mat3 matrix)
+{
+  glUniformMatrix3fv(glGetUniformLocation(shader->ID, name), 1, GL_FALSE, matrix[0]);
 }

@@ -12,12 +12,10 @@
 #include "shader.h"
 #include "macro.h"
 #include "camera.h"
-#define  CIMGUI_USE_SDL2
-#define  CIMGUI_USE_OPENGL3
-#define  CIMGUI_DEFINE_ENUMS_AND_STRUCTS
-#include "src/include/cimgui/cimgui.h"
-#include "src/include/cimgui/cimgui_impl.h"
 #include "src/include/cglm/cglm.h"
+#include "src/include/generated/dcimgui.h"
+#include "src/include/generated/backends/dcimgui_impl_sdl2.h"
+#include "src/include/generated/backends/dcimgui_impl_opengl3.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "src/include/STBI/stb_image.h"
 #define WIDTH 1280
@@ -33,6 +31,7 @@ static struct
     bool IsGameRuning;
     bool isMouseLocked;
     bool showDemoWindow;
+    bool showAnotherWindow;
 } state;
 
 static vec3 cubePositions[] = 
@@ -59,38 +58,84 @@ GLenum errorCheck (int checkNumber)
     const GLubyte* string;
     code = glGetError();
     if (code != GL_NO_ERROR) {
-        string = gluErrorString(code);
+    string = gluErrorString(code);
         printf("Opengl Error: %d , check number %d\n",code,checkNumber);
   }
     return code;
 }
 
-void Render(shaderStruct*shader, GLuint vao, GLuint* textures, float time)
-{
-  ImGui_ImplOpenGL3_NewFrame();
-  ImGui_ImplSDL2_NewFrame();
-  igNewFrame();
+static ImVec4 clearColor = {0.0f, 0.0f, 0.0f, 1.0f};
+static ImVec4 meshColor = { 1.0f, 1.0f, 1.0f, 1.0f};
+static float f = 0.0f;
+static vec3 lightColor = {1.0f,1.0f,1.0f};
+static vec3 lightPos  = {0.0f,0.0f,-5.0f};
+void Render(shaderStruct*defaultshader,shaderStruct*lightShader,ImGuiIO* io, GLuint vao, GLuint lightVAO, GLuint* textures, float time)
+{ 
+  cImGui_ImplOpenGL3_NewFrame();
+  cImGui_ImplSDL2_NewFrame();
+  ImGui_NewFrame();
+ {
+      static int counter = 0;
+
+      ImGui_Begin("Hello, world!", NULL, ImGuiWindowFlags_None);                          // Create a window called "Hello, world!" and append into it.
+
+      ImGui_Text("This is some useful text.");               // Display some text (you can use a format strings too)
+      ImGui_Checkbox("Demo Window", &state.showDemoWindow);      // Edit bools storing our window open/close state
+      ImGui_Checkbox("Another Window", &state.showAnotherWindow);
+
+      ImGui_SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
+      ImGui_ColorEdit3("clear color", (float*)&clearColor , ImGuiColorEditFlags_None); // Edit 3 floats representing a color
+      ImGui_ColorEdit3("cube color", (float*)&meshColor , ImGuiColorEditFlags_None); // Edit 3 floats representing a color
+      ImGui_ColorEdit3("light color", lightColor , ImGuiColorEditFlags_None); // Edit 3 floats representing a color
+      ImGui_InputFloat3("light pos", lightPos);
+    // 
+      if (ImGui_Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+          counter++;
+      ImGui_SameLine();
+      ImGui_Text("counter = %d", counter);
+
+      ImGui_Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io->Framerate, io->Framerate);
+      ImGui_End();
+  }
   if(state.showDemoWindow)
-    igShowDemoWindow(&state.showDemoWindow);
-  igRender();
+    ImGui_ShowDemoWindow(&state.showDemoWindow);
+  ImGui_Render();
   glViewport(0, 0,WIDTH , HEIGHT);
-  glClearColor(0.2f, 0.3f, 0.3f, 1);
+  glClearColor(clearColor.x * clearColor.w, clearColor.y * clearColor.w, clearColor.z * clearColor.w, clearColor.w);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  ImGui_ImplOpenGL3_RenderDrawData(igGetDrawData());
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, textures[0]);
-  UseShader(shader);
+  UseShader(defaultshader);
   glBindVertexArray(vao);
+  SetShaderFloat(defaultshader,"mixValue", f);
+  SetShaderFloat3(defaultshader, "lightPos", lightPos);
+  SetShaderFloat4(defaultshader, "myColor", (vec4){meshColor.x * meshColor.w ,meshColor.y * meshColor.w,meshColor.z * meshColor.w,meshColor.w});
+  SetShaderFloat3(defaultshader, "lightColor", lightColor);
   for(int i = 0; i < 6; i++)
   {
    mat4 model;
+   mat3 normalMatrix;
    glm_mat4_identity(model);
    glm_translate(model, cubePositions[i]);
    float angle = 20.0f * i;
    glm_rotate(model, DEG2RAD(time/ 10.0f), (vec3){1.0f,0.2f,0.0f});
-   SetMatrix4f(shader, "model", model);
+   glm_mat4_pick3(model, normalMatrix);
+   glm_mat3_inv(normalMatrix, normalMatrix);
+   glm_mat3_transpose(normalMatrix);
+   SetShaderMatrix4f(defaultshader, "model", model);
+   SetShaderMatrix3f(defaultshader,"normalMatrix", normalMatrix);
    glDrawArrays(GL_TRIANGLES, 0,36);
   }
+  mat4 model;
+  glm_mat4_identity(model);
+  glm_translate(model, lightPos);
+  glm_scale(model,(vec3){0.7f,0.7f,0.7f});
+  UseShader(lightShader);
+  glBindVertexArray(lightVAO);
+  SetShaderMatrix4f(lightShader, "model", model);
+  SetShaderFloat3(defaultshader, "lightColor", lightColor);
+  glDrawArrays(GL_TRIANGLES, 0, 36);
+  cImGui_ImplOpenGL3_RenderDrawData(ImGui_GetDrawData());
   SDL_GL_SwapWindow(state.window);
 }
 
@@ -100,7 +145,7 @@ int main(int argc, char** argv)
 
  //SDL
   SDL_Init(SDL_INIT_EVERYTHING);
-  state.window = SDL_CreateWindow("Injection", SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,WIDTH,HEIGHT,SDL_WINDOW_OPENGL);
+  state.window = SDL_CreateWindow("Delta", SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,WIDTH,HEIGHT,SDL_WINDOW_OPENGL);
 
   //Logic
   state.isMouseLocked = true;
@@ -113,68 +158,64 @@ int main(int argc, char** argv)
   SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 32);
   glEnable(GL_DEPTH_TEST);
 //ImGUI
-   igCreateContext(NULL);
-   ImGuiIO* ioptr = igGetIO_Nil();
+   ImGui_CreateContext(NULL);
+   ImGuiIO* ioptr = ImGui_GetIO();
    ioptr->ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; 
-   ImGui_ImplSDL2_InitForOpenGL(state.window, state.glContext);
-   ImGui_ImplOpenGL3_Init("#version 330");
+   cImGui_ImplSDL2_InitForOpenGL(state.window, state.glContext);
+   cImGui_ImplOpenGL3_InitEx("#version 330");
   
-  ImVec4 clearColor;
-  clearColor.x = 0.45f;
-  clearColor.y = 0.55f;
-  clearColor.z = 0.60f;
-  clearColor.w = 1.00f;
 //stbi
   stbi_set_flip_vertically_on_load(true); 
 
   Camera mainCamera;
   shaderStruct defaultShader;
+  shaderStruct lightShader;
   InitializeCamera(&mainCamera, (vec3){0.0f,0.0f,-3.0f}, (vec3){0.0f, 1.0f, 0.0f}, DEFAULT_CAM_YAW, DEFAULT_CAM_PITCH, 0.1f, 100.f);
 unsigned int VBO; 
 unsigned int VAO;
 
-float vertices[] = {
-    -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-     0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
-     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-    -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-    -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+float vertices[] = {//3 vertex coords //2 texture coords //3 normals
+    -0.5f, -0.5f, -0.5f,  0.0f, 0.0f, 0.0f,  0.0f, -1.0f,
+     0.5f, -0.5f, -0.5f,  1.0f, 0.0f, 0.0f,  0.0f, -1.0f,
+     0.5f,  0.5f, -0.5f,  1.0f, 1.0f, 0.0f,  0.0f, -1.0f,
+     0.5f,  0.5f, -0.5f,  1.0f, 1.0f, 0.0f,  0.0f, -1.0f,
+    -0.5f,  0.5f, -0.5f,  0.0f, 1.0f, 0.0f,  0.0f, -1.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f, 0.0f, 0.0f,  0.0f, -1.0f,
 
-    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-     0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-     0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-     0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-    -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
-    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,  0.0f,  0.0f, 1.0f,
+     0.5f, -0.5f,  0.5f,  1.0f, 0.0f,  0.0f,  0.0f, 1.0f,
+     0.5f,  0.5f,  0.5f,  1.0f, 1.0f,  0.0f,  0.0f, 1.0f,
+     0.5f,  0.5f,  0.5f,  1.0f, 1.0f,  0.0f,  0.0f, 1.0f,
+    -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,  0.0f,  0.0f, 1.0f,
+    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,  0.0f,  0.0f, 1.0f,
 
-    -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-    -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-    -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+    -0.5f,  0.5f,  0.5f,  1.0f, 0.0f, -1.0f,  0.0f,  0.0f,
+    -0.5f,  0.5f, -0.5f,  1.0f, 1.0f, -1.0f,  0.0f,  0.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f, -1.0f,  0.0f,  0.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f, -1.0f,  0.0f,  0.0f,
+    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f, -1.0f,  0.0f,  0.0f,
+    -0.5f,  0.5f,  0.5f,  1.0f, 0.0f, -1.0f,  0.0f,  0.0f,
 
-     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-     0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-     0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-     0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,  1.0f,  0.0f,  0.0f,
+     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,  1.0f,  0.0f,  0.0f,
+     0.5f, -0.5f, -0.5f,  0.0f, 1.0f,  1.0f,  0.0f,  0.0f,
+     0.5f, -0.5f, -0.5f,  0.0f, 1.0f,  1.0f,  0.0f,  0.0f,
+     0.5f, -0.5f,  0.5f,  0.0f, 0.0f,  1.0f,  0.0f,  0.0f,
+     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,  1.0f,  0.0f,  0.0f,
 
-    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-     0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
-     0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-     0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,  0.0f, -1.0f,  0.0f,
+     0.5f, -0.5f, -0.5f,  1.0f, 1.0f,  0.0f, -1.0f,  0.0f,
+     0.5f, -0.5f,  0.5f,  1.0f, 0.0f,  0.0f, -1.0f,  0.0f,
+     0.5f, -0.5f,  0.5f,  1.0f, 0.0f,  0.0f, -1.0f,  0.0f,
+    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,  0.0f, -1.0f,  0.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,  0.0f, -1.0f,  0.0f,
 
-    -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-    -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
-    -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
+    -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,  0.0f,  1.0f,  0.0f,
+     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,  0.0f,  1.0f,  0.0f,
+     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,  0.0f,  1.0f,  0.0f,
+     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,  0.0f,  1.0f,  0.0f,
+    -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,  0.0f,  1.0f,  0.0f,
+    -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,  0.0f,  1.0f,  0.0f
 };
   glGenVertexArrays(1,&VAO);
   glGenBuffers(1,&VBO);
@@ -185,20 +226,26 @@ float vertices[] = {
 
   glBufferData(GL_ARRAY_BUFFER,sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-
-
-  
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
   glEnableVertexAttribArray(0);
   
-
-  glVertexAttribPointer(1,2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 *sizeof(float)));
+  glVertexAttribPointer(1,2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 *sizeof(float)));
   glEnableVertexAttribArray(1);
+  glVertexAttribPointer(2,3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(5 *sizeof(float)));
+  glEnableVertexAttribArray(2);
 
 
   glBindBuffer(GL_ARRAY_BUFFER,0);
 
   glBindVertexArray(0);
+
+  unsigned int lightVAO;
+  glGenVertexArrays(1,&lightVAO);
+  glBindVertexArray(lightVAO);
+
+  glBindBuffer(GL_ARRAY_BUFFER, VBO);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+  glEnableVertexAttribArray(0);
 
 
   int width, height, nrChannels;
@@ -214,36 +261,40 @@ float vertices[] = {
   glGenerateMipmap(GL_TEXTURE_2D);
   
 
-  CreateShader(&defaultShader, "e:\\projects\\3dengine\\shaders\\defaultvertex.vs","e:\\projects\\3dengine\\shaders\\defaultfragment.fs");
+  CreateShader(&defaultShader, "e:\\projects\\deltaengine\\3dengine\\shaders\\defaultvertex.vs","e:\\projects\\deltaengine\\3dengine\\shaders\\defaultfragment.fs");
+  CreateShader(&lightShader, "e:\\projects\\deltaengine\\3dengine\\shaders\\lightCubeVertex.vs","e:\\projects\\deltaengine\\3dengine\\shaders\\lightFragmentShader.fs");
   stbi_image_free(data);
   mat4 view;
-
   mat4 projection;
   glm_perspective(DEG2RAD(mainCamera.fov), WIDTH / HEIGHT, 0.1f, 100.0f, projection); 
   UseShader(&defaultShader);
-  SetInt(&defaultShader, "texture1", 0);
-  SetMatrix4f(&defaultShader, "projection", projection);
-
+  SetShaderInt(&defaultShader, "texture1", 0);
+  SetShaderMatrix4f(&defaultShader, "projection", projection);
+  UseShader(&lightShader);
+  SetShaderMatrix4f(&lightShader, "projection", projection);
 
   float lastTickTime = 0;
   state.deltaTime = 0;
   while(state.IsGameRuning)
   {
     int i = 0;
-    float angle = 30.0f * i;
     float time = SDL_GetTicks();
     state.deltaTime = (time - lastTickTime) / 1000.0f;
     Update(&mainCamera,state.deltaTime,&defaultShader);
-    SetFloat(&defaultShader,"time", time);
+    SetShaderFloat(&defaultShader,"time", time);
     GetViewMatrixFromCamera(mainCamera, view);
-    SetMatrix4f(&defaultShader, "view", view);
-    Render(&defaultShader,VAO,textures,time);
+    SetShaderMatrix4f(&defaultShader, "view", view);
+    SetShaderFloat3(&defaultShader, "viewPos", mainCamera.position);
+    UseShader(&lightShader);
+    SetShaderFloat(&lightShader,"time", time);
+    SetShaderMatrix4f(&lightShader,"view", view);
+    Render(&defaultShader,&lightShader,ioptr,VAO,lightVAO,textures,time);
     SDL_Delay(1);
     lastTickTime = time;
   }
-  ImGui_ImplSDL2_Shutdown();
-  ImGui_ImplOpenGL3_Shutdown();
-  igDestroyContext(NULL);
+  cImGui_ImplSDL2_Shutdown();
+  cImGui_ImplOpenGL3_Shutdown();
+  ImGui_DestroyContext(NULL);
   SDL_GL_DeleteContext(state.glContext);
   SDL_Quit();
   return 0;
@@ -272,7 +323,7 @@ void Update(Camera *camera,float deltaTime,shaderStruct *shader)
     }
     while(SDL_PollEvent(&state.event) != 0)
     {
-      ImGui_ImplSDL2_ProcessEvent(&state.event);
+      cImGui_ImplSDL2_ProcessEvent(&state.event);
       if(state.event.type == SDL_QUIT)
         state.IsGameRuning = false;
       if(state.event.type == SDL_MOUSEMOTION)
@@ -300,6 +351,7 @@ void Update(Camera *camera,float deltaTime,shaderStruct *shader)
         }
       }
    }
+  
   SDL_SetRelativeMouseMode(state.isMouseLocked);
   UseShader(shader);
 }

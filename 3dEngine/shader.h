@@ -15,10 +15,13 @@ void CreateShader(shaderStruct* shader, const char* vertexPath, const char* frag
 
 void UseShader(shaderStruct* shader);
 
-void SetBool(shaderStruct* shader,const char* name, bool value);
-void SetFloat(shaderStruct* shader,const char* name, float value);
-void SetInt(shaderStruct* shader, const char* name, int value);
-void SetMatrix4f(shaderStruct* shader, const char* name, mat4 matrix);
+void SetShaderBool(shaderStruct* shader,const char* name, bool value);
+void SetShaderFloat(shaderStruct* shader,const char* name, float value);
+void SetShaderInt(shaderStruct* shader, const char* name, int value);
+void SetShaderFloat3(shaderStruct* shader, const char* name, vec3 floats);
+void SetShaderFloat4(shaderStruct* shader, const char* name, vec4 floats);
+void SetShaderMatrix3f(shaderStruct* shader, const char* name, mat3 matrix);
+void SetShaderMatrix4f(shaderStruct* shader, const char* name, mat4 matrix);
 void DeleteShader(shaderStruct* shader);
 
 
