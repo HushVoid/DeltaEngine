@@ -45,8 +45,22 @@ static vec3 cubePositions[] =
     };
 void Update(Camera *camera,float deltaTime, shaderStruct *shader);
 
+static struct
+{
+  unsigned int diffuseMap;
+  unsigned int specularMap;
+  float shininess;
+} material;
 
+static struct
+{
+  vec3 position;
 
+  vec3 ambient;
+  vec3 diffuse;
+  vec3 specular;
+  float intensity;
+} light;
 bool isKeyDown(SDL_Scancode scanCode)
 {
   return state.keyboardStates[scanCode];
@@ -64,12 +78,10 @@ GLenum errorCheck (int checkNumber)
     return code;
 }
 
-static ImVec4 clearColor = {0.0f, 0.0f, 0.0f, 1.0f};
-static ImVec4 meshColor = { 1.0f, 1.0f, 1.0f, 1.0f};
+static ImVec4 clearColor = {0.1f, 0.1f, 0.1f, 1.0f};
+//static ImVec4 meshColor = { 1.0f, 1.0f, 1.0f, 1.0f};
 static float f = 0.0f;
-static vec3 lightColor = {1.0f,1.0f,1.0f};
-static vec3 lightPos  = {0.0f,0.0f,-5.0f};
-void Render(shaderStruct*defaultshader,shaderStruct*lightShader,ImGuiIO* io, GLuint vao, GLuint lightVAO, GLuint* textures, float time)
+void Render(shaderStruct*objectshader,shaderStruct*lightShader,ImGuiIO* io, GLuint vao, GLuint lightVAO, GLuint* textures, float time)
 { 
   cImGui_ImplOpenGL3_NewFrame();
   cImGui_ImplSDL2_NewFrame();
@@ -77,17 +89,19 @@ void Render(shaderStruct*defaultshader,shaderStruct*lightShader,ImGuiIO* io, GLu
  {
       static int counter = 0;
 
-      ImGui_Begin("Hello, world!", NULL, ImGuiWindowFlags_None);                          // Create a window called "Hello, world!" and append into it.
+      ImGui_Begin("Inspecta!", NULL, ImGuiWindowFlags_None);                          // Create a window called "Hello, world!" and append into it.
 
       ImGui_Text("This is some useful text.");               // Display some text (you can use a format strings too)
       ImGui_Checkbox("Demo Window", &state.showDemoWindow);      // Edit bools storing our window open/close state
-      ImGui_Checkbox("Another Window", &state.showAnotherWindow);
-
-      ImGui_SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
+      ImGui_Checkbox("Material Window", &state.showAnotherWindow);
+      //ImGui_SliderFloat("Mix value", &f, 0, 1);
       ImGui_ColorEdit3("clear color", (float*)&clearColor , ImGuiColorEditFlags_None); // Edit 3 floats representing a color
-      ImGui_ColorEdit3("cube color", (float*)&meshColor , ImGuiColorEditFlags_None); // Edit 3 floats representing a color
-      ImGui_ColorEdit3("light color", lightColor , ImGuiColorEditFlags_None); // Edit 3 floats representing a color
-      ImGui_InputFloat3("light pos", lightPos);
+ //     ImGui_ColorEdit3("cube color", (float*)&meshColor , ImGuiColorEditFlags_None); // Edit 3 floats representing a color
+      ImGui_ColorEdit3("light ambient", light.ambient , ImGuiColorEditFlags_None); // Edit 3 floats representing a color
+      ImGui_ColorEdit3("light diffuse", light.diffuse , ImGuiColorEditFlags_None); // Edit 3 floats representing a color
+      ImGui_ColorEdit3("light specular", light.specular , ImGuiColorEditFlags_None); // Edit 3 floats representing a color
+      ImGui_InputFloat3("light pos", light.position);
+      ImGui_SliderFloat("light intensity", &light.intensity, 0.001f, 100.0f);
     // 
       if (ImGui_Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
           counter++;
@@ -99,19 +113,37 @@ void Render(shaderStruct*defaultshader,shaderStruct*lightShader,ImGuiIO* io, GLu
   }
   if(state.showDemoWindow)
     ImGui_ShowDemoWindow(&state.showDemoWindow);
+  if(state.showAnotherWindow)
+  {
+      ImGui_Begin("Material", NULL, ImGuiWindowFlags_None);
+  
+      ImGui_SliderFloat("Shininess", &material.shininess, 0.0f, 512.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
+      ImGui_End();
+  }
   ImGui_Render();
   glViewport(0, 0,WIDTH , HEIGHT);
   glClearColor(clearColor.x * clearColor.w, clearColor.y * clearColor.w, clearColor.z * clearColor.w, clearColor.w);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D, textures[0]);
-  UseShader(defaultshader);
+  glBindTexture(GL_TEXTURE_2D, material.diffuseMap);
+  glActiveTexture(GL_TEXTURE1);
+  glBindTexture(GL_TEXTURE_2D, material.specularMap);
+  UseShader(objectshader);
   glBindVertexArray(vao);
-  SetShaderFloat(defaultshader,"mixValue", f);
-  SetShaderFloat3(defaultshader, "lightPos", lightPos);
-  SetShaderFloat4(defaultshader, "myColor", (vec4){meshColor.x * meshColor.w ,meshColor.y * meshColor.w,meshColor.z * meshColor.w,meshColor.w});
-  SetShaderFloat3(defaultshader, "lightColor", lightColor);
-  for(int i = 0; i < 6; i++)
+  //SetShaderFloat(objectshader, "mixValue", f);
+ // SetShaderFloat4(objectshader, "myColor", (vec4){meshColor.x * meshColor.w ,meshColor.y * meshColor.w,meshColor.z * meshColor.w,meshColor.w});
+
+  //setting the material
+  
+  SetShaderFloat(objectshader, "material.shininess", material.shininess);
+
+  SetShaderFloat3(objectshader, "light.ambient", light.ambient);
+  SetShaderFloat3(objectshader, "light.diffuse", light.diffuse);
+  SetShaderFloat3(objectshader, "light.specular", light.specular);
+
+
+  
+ for(int i = 0; i < 6; i++)
   {
    mat4 model;
    mat3 normalMatrix;
@@ -122,19 +154,21 @@ void Render(shaderStruct*defaultshader,shaderStruct*lightShader,ImGuiIO* io, GLu
    glm_mat4_pick3(model, normalMatrix);
    glm_mat3_inv(normalMatrix, normalMatrix);
    glm_mat3_transpose(normalMatrix);
-   SetShaderMatrix4f(defaultshader, "model", model);
-   SetShaderMatrix3f(defaultshader,"normalMatrix", normalMatrix);
+   SetShaderMatrix4f(objectshader, "model", model);
+   SetShaderMatrix3f(objectshader,"normalMatrix", normalMatrix);
    glDrawArrays(GL_TRIANGLES, 0,36);
   }
   mat4 model;
   glm_mat4_identity(model);
-  glm_translate(model, lightPos);
+  glm_translate(model, light.position);
   glm_scale(model,(vec3){0.7f,0.7f,0.7f});
   UseShader(lightShader);
   glBindVertexArray(lightVAO);
   SetShaderMatrix4f(lightShader, "model", model);
-  SetShaderFloat3(defaultshader, "lightColor", lightColor);
-  glDrawArrays(GL_TRIANGLES, 0, 36);
+  SetShaderFloat3(lightShader, "light.ambient", light.ambient);
+  SetShaderFloat3(lightShader, "light.diffuse", light.diffuse);
+  SetShaderFloat3(lightShader, "light.specular", light.specular);
+  //glDrawArrays(GL_TRIANGLES, 0, 36);
   cImGui_ImplOpenGL3_RenderDrawData(ImGui_GetDrawData());
   SDL_GL_SwapWindow(state.window);
 }
@@ -167,8 +201,26 @@ int main(int argc, char** argv)
 //stbi
   stbi_set_flip_vertically_on_load(true); 
 
+//light
+  light.position[2] = -5.0f;
+  light.intensity = 1.0f; 
+
+  material.shininess = 2.0f;
+
+  light.specular[0] = 1.0f;
+  light.specular[1] = 1.0f;
+  light.specular[2] = 1.0f;
+
+  light.ambient[0] = 0.1f;
+  light.ambient[1] = 0.1f;
+  light.ambient[2] = 0.1f;
+
+  light.diffuse[0] = 0.5f;
+  light.diffuse[1] = 0.5f;
+  light.diffuse[2] = 0.5f;
+
   Camera mainCamera;
-  shaderStruct defaultShader;
+  shaderStruct objectshader;
   shaderStruct lightShader;
   InitializeCamera(&mainCamera, (vec3){0.0f,0.0f,-3.0f}, (vec3){0.0f, 1.0f, 0.0f}, DEFAULT_CAM_YAW, DEFAULT_CAM_PITCH, 0.1f, 100.f);
 unsigned int VBO; 
@@ -249,27 +301,37 @@ float vertices[] = {//3 vertex coords //2 texture coords //3 normals
 
 
   int width, height, nrChannels;
-  unsigned char *data = stbi_load("E:\\projects\\3dengine\\textures\\happy.png", &width, &height, &nrChannels, 0);
-  unsigned int textures[1];
-  glGenTextures(1, &textures[0]);
-  glBindTexture(GL_TEXTURE_2D, textures[0]);
+  unsigned char *data = stbi_load("E:\\projects\\deltaengine\\3dengine\\textures\\woodboxtest.png", &width, &height, &nrChannels, 0);
+  unsigned int textures[2];
+  glGenTextures(1, &material.diffuseMap);
+  glBindTexture(GL_TEXTURE_2D, material.diffuseMap);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
   glGenerateMipmap(GL_TEXTURE_2D);
-  
 
-  CreateShader(&defaultShader, "e:\\projects\\deltaengine\\3dengine\\shaders\\defaultvertex.vs","e:\\projects\\deltaengine\\3dengine\\shaders\\defaultfragment.fs");
+  data = stbi_load("E:\\projects\\deltaengine\\3dengine\\textures\\woddboxtest_specular.png", &width, &height, &nrChannels, 0);
+  glGenTextures(1, &material.specularMap);
+  glBindTexture(GL_TEXTURE_2D, material.specularMap);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+  glGenerateMipmap(GL_TEXTURE_2D);
+
+  CreateShader(&objectshader, "e:\\projects\\deltaengine\\3dengine\\shaders\\defaultvertex.vs","e:\\projects\\deltaengine\\3dengine\\shaders\\defaultfragment.fs");
   CreateShader(&lightShader, "e:\\projects\\deltaengine\\3dengine\\shaders\\lightCubeVertex.vs","e:\\projects\\deltaengine\\3dengine\\shaders\\lightFragmentShader.fs");
   stbi_image_free(data);
   mat4 view;
   mat4 projection;
   glm_perspective(DEG2RAD(mainCamera.fov), WIDTH / HEIGHT, 0.1f, 100.0f, projection); 
-  UseShader(&defaultShader);
-  SetShaderInt(&defaultShader, "texture1", 0);
-  SetShaderMatrix4f(&defaultShader, "projection", projection);
+  UseShader(&objectshader);
+  SetShaderInt(&objectshader, "material.diffuse", 0);
+  SetShaderInt(&objectshader, "material.specular", 1);
+  SetShaderMatrix4f(&objectshader, "projection", projection);
   UseShader(&lightShader);
   SetShaderMatrix4f(&lightShader, "projection", projection);
 
@@ -280,15 +342,15 @@ float vertices[] = {//3 vertex coords //2 texture coords //3 normals
     int i = 0;
     float time = SDL_GetTicks();
     state.deltaTime = (time - lastTickTime) / 1000.0f;
-    Update(&mainCamera,state.deltaTime,&defaultShader);
-    SetShaderFloat(&defaultShader,"time", time);
+    Update(&mainCamera,state.deltaTime,&objectshader);
+    SetShaderFloat(&objectshader,"time", time);
     GetViewMatrixFromCamera(mainCamera, view);
-    SetShaderMatrix4f(&defaultShader, "view", view);
-    SetShaderFloat3(&defaultShader, "viewPos", mainCamera.position);
+    SetShaderMatrix4f(&objectshader, "view", view);
+    SetShaderFloat3(&objectshader, "viewPos", mainCamera.position);
     UseShader(&lightShader);
     SetShaderFloat(&lightShader,"time", time);
     SetShaderMatrix4f(&lightShader,"view", view);
-    Render(&defaultShader,&lightShader,ioptr,VAO,lightVAO,textures,time);
+    Render(&objectshader,&lightShader,ioptr,VAO,lightVAO,textures,time);
     SDL_Delay(1);
     lastTickTime = time;
   }
@@ -354,5 +416,9 @@ void Update(Camera *camera,float deltaTime,shaderStruct *shader)
   
   SDL_SetRelativeMouseMode(state.isMouseLocked);
   UseShader(shader);
+  SetShaderFloat3(shader, "light.position", camera->position);
+  SetShaderFloat3(shader, "light.direction", camera->frontVec);
+  SetShaderFloat(shader, "light.cutOff", cos(DEG2RAD(12.5f)));
+  SetShaderFloat(shader, "light.outerCutOff", cos(DEG2RAD(17.5f)));
 }
 
