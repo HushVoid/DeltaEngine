@@ -1,0 +1,37 @@
+#ifndef MESH_H
+#define MESH_H
+
+#include "include/cglm/cglm.h"
+#include "include/GL/glew.h"
+#include "dynlist.h"
+#include "shader.h"
+
+typedef struct
+{
+  vec3 position;
+  vec3 normal;
+  vec2 TexCoords;
+}Vertex;
+
+typedef struct
+{
+  unsigned int id;
+  char type[30];
+} Texture;
+
+typedef struct
+{
+  Vertex* vertices;
+  unsigned int* indices;
+  Texture* textures;
+  
+  unsigned int VAO;
+  unsigned int VBO;
+  unsigned int EBO;
+} Mesh;
+
+void MeshInit(Mesh *mesh,Vertex *vertices, unsigned int *indices, Texture *textures);
+void Draw(Mesh* mesh,shaderStruct *shader);
+void SetupMesh(Mesh *mesh);
+
+#endif // !MESH_Hj

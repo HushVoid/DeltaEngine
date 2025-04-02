@@ -1,9 +1,9 @@
 CC = gcc
-LIB = -lstdc++ -L src\lib -lmingw32 -lSDL2main -lSDL2 -lopengl32 -lglu32 -lglew32 -lcimgui
+LIB = -lstdc++ -L src\lib -lmingw32 -lSDL2main -lSDL2 -lopengl32 -lglu32 -lglew32 -lcimgui -lassimp
 INCDIRS = -Isrc\include -Isrc\include\imgui -Isrc\include\imgui\backends -Isrc\include\generated -Isrc\include\generated\backends
 
 # Список исходных файлов
-SOURCES = src/main.c src/shader.c src/fileread.c src/camera.c src/light.c
+SOURCES = src/main.c src/shader.c src/fileread.c src/camera.c src/light.c src/dynlist.c
 
 # Пути и объектные файлы
 OBJ_DIR = obj
