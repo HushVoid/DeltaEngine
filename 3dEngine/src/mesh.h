@@ -16,7 +16,8 @@ typedef struct
 typedef struct
 {
   unsigned int id;
-  char type[30];
+  char type[64];
+  char path[512];
 } Texture;
 
 typedef struct
@@ -33,5 +34,6 @@ typedef struct
 void MeshInit(Mesh *mesh,Vertex *vertices, unsigned int *indices, Texture *textures);
 void Draw(Mesh* mesh,shaderStruct *shader);
 void SetupMesh(Mesh *mesh);
+void DeleteMesh(Mesh *mesh);
 
 #endif // !MESH_Hj

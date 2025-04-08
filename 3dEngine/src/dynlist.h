@@ -26,6 +26,6 @@ void* dynlistPush(void* userdata, const void* value);
 void* dynlistAt(void* userdata,unsigned int index);
 size_t dynlistSize(void* userdata);
 void dynlistFree(void* userdata);
-
+void* dynlistPushArray(void* userdata, const void* array, size_t arrayCount);
 
 #endif

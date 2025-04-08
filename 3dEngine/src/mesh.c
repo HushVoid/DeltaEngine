@@ -8,20 +8,23 @@
 
 void MeshInit(Mesh *mesh,Vertex *vertices, unsigned int *indices, Texture *textures)
 {
- mesh->vertices = dynlistInit(sizeof(Vertex), 0);
- mesh->indices = dynlistInit(sizeof(Vertex), 0);
- mesh->textures = dynlistInit(sizeof(Texture),0);
+  //initializing dynlists
+ mesh->vertices = dynlistInit(sizeof(Vertex), 1);
+ mesh->indices = dynlistInit(sizeof(Vertex), 1);
+ mesh->textures = dynlistInit(sizeof(Texture),1);
   
- mesh->vertices = dynlistPush(mesh->vertices, vertices);
- mesh->indices = dynlistPush(mesh->indices, indices);
- mesh->vertices = dynlistPush(mesh->vertices, textures);
+ //pushing coresponding parameters
+ mesh->vertices = dynlistPushArray(mesh->vertices, vertices, dynlistSize(vertices));
+ mesh->indices = dynlistPushArray(mesh->indices, indices, dynlistSize(indices));
+ mesh->vertices = dynlistPushArray(mesh->vertices, textures, dynlistSize(textures));
 
   SetupMesh(mesh);  
   
 } 
-
+//Setuping GPU stuff 
 void SetupMesh(Mesh *mesh)
 {
+  
     glGenVertexArrays(1, &mesh->VAO);
     glGenBuffers(1, &mesh->VBO);
     glGenBuffers(1, &mesh->EBO);
@@ -72,4 +75,32 @@ void Draw(Mesh *mesh,shaderStruct *shader)
   glBindVertexArray(mesh->VAO);
   glDrawElements(GL_TRIANGLES, dynlistSize(mesh->indices), GL_UNSIGNED_INT, 0);
   glBindVertexArray(0);
+}
+void DeleteMesh(Mesh *mesh)
+{
+  if(!mesh) return; 
+  //CPU resources
+  if(mesh->vertices)
+    dynlistFree(mesh->vertices);
+  if(mesh->indices)
+    dynlistFree(mesh->textures); 
+  if(mesh->textures)
+    dynlistFree(mesh->indices);
+
+  //GPU resources 
+  if(mesh->VAO != 0)
+  {
+    glDeleteVertexArrays(1, &mesh->VAO);
+    mesh->VAO = 0;
+  }  
+  if(mesh->VBO != 0)
+  {
+    glDeleteBuffers(1, &mesh->VBO);
+    mesh->VBO = 0;
+  }  
+  if(mesh->EBO != 0)
+  {
+    glDeleteBuffers(1, &mesh->EBO);
+    mesh->EBO = 0;
+  }  
 }
