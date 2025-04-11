@@ -6,20 +6,13 @@
 #include "mesh.h"
 
 
-void MeshInit(Mesh *mesh,Vertex *vertices, unsigned int *indices, Texture *textures)
+void MeshInit(Mesh *mesh,dynlist_t *vertices, dynlist_t *indices, dynlist_t *textures)
 {
   //initializing dynlists
- mesh->vertices = dynlistInit(sizeof(Vertex), 1);
- mesh->indices = dynlistInit(sizeof(Vertex), 1);
- mesh->textures = dynlistInit(sizeof(Texture),1);
-  
- //pushing coresponding parameters
- mesh->vertices = dynlistPushArray(mesh->vertices, vertices, dynlistSize(vertices));
- mesh->indices = dynlistPushArray(mesh->indices, indices, dynlistSize(indices));
- mesh->vertices = dynlistPushArray(mesh->vertices, textures, dynlistSize(textures));
-
-  SetupMesh(mesh);  
-  
+  mesh->vertices = vertices;
+  mesh->indices = indices;
+  mesh->textures = textures;
+  SetupMesh(mesh);
 } 
 //Setuping GPU stuff 
 void SetupMesh(Mesh *mesh)
@@ -31,12 +24,11 @@ void SetupMesh(Mesh *mesh)
   
     glBindVertexArray(mesh->VAO);
     glBindBuffer(GL_ARRAY_BUFFER, mesh->VBO);
-
-    glBufferData(GL_ARRAY_BUFFER, dynlistSize(mesh->vertices) * sizeof(Vertex), &mesh->vertices[0], GL_STATIC_DRAW);  
-
+    
+    glBufferData(GL_ARRAY_BUFFER, mesh->vertices->size * mesh->vertices->elemSize, mesh->vertices->items, GL_STATIC_DRAW);  
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, dynlistSize(mesh->indices) * sizeof(unsigned int), 
-                 &mesh->indices[0], GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh->indices->size * mesh->indices->elemSize, 
+                 mesh->indices->items, GL_STATIC_DRAW);
 
     // vertex positions
     glEnableVertexAttribArray(0);	
@@ -54,26 +46,28 @@ void Draw(Mesh *mesh,shaderStruct *shader)
 {
   unsigned int diffuseNr = 1;
   unsigned int specularNr = 1;
-  for(int i = 0; i < dynlistSize(mesh->textures); i++)
+  for(size_t i = 0; i < mesh->textures->size; i++)
   {
     glActiveTexture(GL_TEXTURE0 + i);
     char number[3];
     char name[30];
-    strcpy_s(name, sizeof(name) , mesh->textures[i].type);
+    Texture* currtexture = dynlistAt(mesh->textures, i);
+    strcpy_s(name, sizeof(name) , currtexture->type);
     if(strcmp(name, "texture_diffuse"))
       snprintf(number, sizeof(number), "%d", diffuseNr++);
     if(strcmp(name, "texture_specular"))
       snprintf(number, sizeof(number), "%d", diffuseNr++);
-    char result[50] = "material.";
+    char result[50] = "\0";
     strcat_s(result , sizeof(result), name);
     strcat_s(result , sizeof(result), number);
+    printf("%s\n", result);
     SetShaderInt(shader, result, i);
-    glBindTexture(GL_TEXTURE_2D, mesh->textures[i].id);
+    glBindTexture(GL_TEXTURE_2D, currtexture->id);
   }
   glActiveTexture(GL_TEXTURE0);
 
   glBindVertexArray(mesh->VAO);
-  glDrawElements(GL_TRIANGLES, dynlistSize(mesh->indices), GL_UNSIGNED_INT, 0);
+  glDrawElements(GL_TRIANGLES, mesh->indices->size, GL_UNSIGNED_INT, 0);
   glBindVertexArray(0);
 }
 void DeleteMesh(Mesh *mesh)
@@ -83,7 +77,7 @@ void DeleteMesh(Mesh *mesh)
   if(mesh->vertices)
     dynlistFree(mesh->vertices);
   if(mesh->indices)
-    dynlistFree(mesh->textures); 
+    dynlistFreeContainerOnly(mesh->textures); 
   if(mesh->textures)
     dynlistFree(mesh->indices);
 

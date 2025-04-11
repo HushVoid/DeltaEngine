@@ -22,16 +22,16 @@ typedef struct
 
 typedef struct
 {
-  Vertex* vertices;
-  unsigned int* indices;
-  Texture* textures;
+  dynlist_t *vertices;
+  dynlist_t  *indices;
+  dynlist_t *textures;
   
   unsigned int VAO;
   unsigned int VBO;
   unsigned int EBO;
 } Mesh;
 
-void MeshInit(Mesh *mesh,Vertex *vertices, unsigned int *indices, Texture *textures);
+void MeshInit(Mesh *mesh,dynlist_t *vertices, dynlist_t *indices, dynlist_t *textures);
 void Draw(Mesh* mesh,shaderStruct *shader);
 void SetupMesh(Mesh *mesh);
 void DeleteMesh(Mesh *mesh);

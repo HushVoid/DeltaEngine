@@ -1,27 +1,5 @@
-#include "include/SDL2/SDL_main.h"
-#ifdef _WIN32
-#include <windows.h>
-#endif
-#include "include/GL/glew.h"
-#include <GL/GLU.h>
-#include <stdio.h>
-#include <stdbool.h>
-#include "include/SDL2/SDL.h"
-#include "include/SDL2/SDL_video.h"
-#include "math.h"
-#include "shader.h"
-#include "macro.h"
-#include "camera.h"
-#include "light.h"
-#include "include/cglm/cglm.h"
-#include "include/assimp/cimport.h"
-#include "include/assimp/scene.h"
-#include "dynlist.h"
-#include "include/generated/dcimgui.h"
-#include "include/generated/backends/dcimgui_impl_sdl2.h"
-#include "include/generated/backends/dcimgui_impl_opengl3.h"
-#define STB_IMAGE_IMPLEMENTATION
-#include "include/STBI/stb_image.h"
+#include "allincludes.h"
+
 #define WIDTH 1280
 #define HEIGHT 720
 
@@ -75,7 +53,11 @@ GLenum errorCheck (int checkNumber)
 static ImVec4 clearColor = {0.1f, 0.1f, 0.1f, 1.0f};
 //static ImVec4 meshColor = { 1.0f, 1.0f, 1.0f, 1.0f};
 static float f = 0.0f;
-static PointLight pointLights[4]; 
+static PointLight pointLights[4];
+static Model model;
+static Model *pModel = &model;
+static shaderStruct modelshader;
+static vec3 modelPos;
 void Render(shaderStruct*objectshader,shaderStruct*lightShader,ImGuiIO* io, GLuint vao, GLuint lightVAO, GLuint* textures, float time)
 { 
   cImGui_ImplOpenGL3_NewFrame();
@@ -109,7 +91,7 @@ void Render(shaderStruct*objectshader,shaderStruct*lightShader,ImGuiIO* io, GLui
       ImGui_ColorEdit3("point light ambient color", pointLights[lightIndex].ambient , ImGuiColorEditFlags_None); // Edit 3 floats representing a color
       ImGui_ColorEdit3("point light diffuse color", pointLights[lightIndex].diffuse , ImGuiColorEditFlags_None); // Edit 3 floats representing a color
       ImGui_ColorEdit3("point light specular color", pointLights[lightIndex].specular , ImGuiColorEditFlags_None); // Edit 3 floats representing a color
-
+      ImGui_InputFloat3("model position", modelPos);
       ImGui_Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io->Framerate, io->Framerate);
       ImGui_End();
   }
@@ -124,52 +106,17 @@ void Render(shaderStruct*objectshader,shaderStruct*lightShader,ImGuiIO* io, GLui
   glViewport(0, 0,WIDTH , HEIGHT);
   glClearColor(clearColor.x * clearColor.w, clearColor.y * clearColor.w, clearColor.z * clearColor.w, clearColor.w);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D, material.diffuseMap);
-  glActiveTexture(GL_TEXTURE1);
-  glBindTexture(GL_TEXTURE_2D, material.specularMap);
-  UseShader(objectshader);
-  glBindVertexArray(vao);
-
-  //setting the material
-  
-  SetShaderFloat(objectshader, "material.shininess", material.shininess);
-
-
-  
- for(int i = 0; i < 6; i++)
-  {
-   mat4 model;
-   mat3 normalMatrix;
-   glm_mat4_identity(model);
-   glm_translate(model, cubePositions[i]);
-   float angle = 20.0f * i;
-   glm_rotate(model, DEG2RAD(time/ 10.0f), (vec3){1.0f,0.2f,0.0f});
-   glm_mat4_pick3(model, normalMatrix);
-   glm_mat3_inv(normalMatrix, normalMatrix);
-   glm_mat3_transpose(normalMatrix);
-   SetShaderMatrix4f(objectshader, "model", model);
-   SetShaderMatrix3f(objectshader,"normalMatrix", normalMatrix);
-   glDrawArrays(GL_TRIANGLES, 0,36);
-  }
-  glBindVertexArray(lightVAO);
-  for(int i = 0; i < 4; i++)
-  { 
-
-    UseShader(lightShader);
-    mat4 model;
-    char lightname[30] ="";
-    snprintf(lightname, sizeof(lightname), "pointLights[%d]", i);
-    glm_mat4_identity(model);
-    glm_scale(model,(vec3){0.7f,0.7f,0.7f});
-    glm_translate(model, pointLights[i].position);
-    SetShaderMatrix4f(lightShader, "model", model);
-    SetShaderInt(lightShader,"pointLightIndex", i);
-    SetPointLightStruct(lightShader, lightname, pointLights[i]);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
-    UseShader(objectshader);
-    SetPointLightStruct(objectshader, lightname, pointLights[i]);
-  }
+  mat4 modelMat;
+  mat3 normalMatrix;
+  glm_mat4_identity(modelMat);
+  glm_translate(modelMat, modelPos); 
+  glm_mat4_pick3(modelMat, normalMatrix);
+  glm_mat3_inv(normalMatrix, normalMatrix);
+  glm_mat3_transpose(normalMatrix);
+  UseShader(&modelshader);
+  SetShaderMatrix4f(&modelshader, "model", modelMat);
+  SetShaderMatrix3f(&modelshader,"normalMatrix", normalMatrix);
+  DrawModel(pModel, &modelshader);
   cImGui_ImplOpenGL3_RenderDrawData(ImGui_GetDrawData());
   SDL_GL_SwapWindow(state.window);
 }
@@ -178,7 +125,7 @@ void Render(shaderStruct*objectshader,shaderStruct*lightShader,ImGuiIO* io, GLui
 int main(int argc, char** argv)
 {
 
- //SDL
+  //SDL
   SDL_Init(SDL_INIT_EVERYTHING);
   state.window = SDL_CreateWindow("Delta", SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,WIDTH,HEIGHT,SDL_WINDOW_OPENGL);
 
@@ -315,6 +262,9 @@ float vertices[] = {//3 vertex coords //2 texture coords //3 normals
 
   CreateShader(&objectshader, "e:\\projects\\deltaengine\\3dengine\\shaders\\defaultvertex.vs","e:\\projects\\deltaengine\\3dengine\\shaders\\defaultfragment.fs");
   CreateShader(&lightShader, "e:\\projects\\deltaengine\\3dengine\\shaders\\lightCubeVertex.vs","e:\\projects\\deltaengine\\3dengine\\shaders\\lightFragmentShader.fs");
+  CreateShader(&modelshader, "E:\\projects\\deltaengine\\3dengine\\shaders\\modelvertex.vs", "E:\\projects\\deltaengine\\3dengine\\shaders\\modelfragment.fs");
+  
+  ModelInit(pModel, "E:\\projects\\deltaengine\\3dengine\\resources\\models\\backpack\\backpack.obj");
   stbi_image_free(data);
   mat4 view;
   mat4 projection;
@@ -325,6 +275,9 @@ float vertices[] = {//3 vertex coords //2 texture coords //3 normals
   SetShaderMatrix4f(&objectshader, "projection", projection);
   UseShader(&lightShader);
   SetShaderMatrix4f(&lightShader, "projection", projection);
+  UseShader(&modelshader);
+  SetShaderMatrix4f(&modelshader, "projection", projection);
+
 
   float lastTickTime = 0;
   state.deltaTime = 0;
@@ -341,10 +294,14 @@ float vertices[] = {//3 vertex coords //2 texture coords //3 normals
     UseShader(&lightShader);
     SetShaderFloat(&lightShader,"time", time);
     SetShaderMatrix4f(&lightShader,"view", view);
+    UseShader(&modelshader);
+    SetShaderFloat(&modelshader,"time", time);
+    SetShaderMatrix4f(&modelshader,"view", view);
     Render(&objectshader,&lightShader,ioptr,VAO,lightVAO,textures,time);
-    SDL_Delay(1);
+   // SDL_Delay(1);
     lastTickTime = time;
   }
+  DeleteModel(pModel);
   cImGui_ImplSDL2_Shutdown();
   cImGui_ImplOpenGL3_Shutdown();
   ImGui_DestroyContext(NULL);

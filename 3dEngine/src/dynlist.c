@@ -5,95 +5,84 @@
 
 
 
-void* dynlistInit(size_t elemSize, size_t initCapacity)
+dynlist_t*  dynlistInit(size_t elemSize, size_t capacity)
 {
-  //Counting total size of list
-  size_t total_size = sizeof(dynlistHeader) + elemSize + initCapacity;
-  //alocating memory of that size
-  dynlistHeader* header = (dynlistHeader*)malloc(total_size);
-  if(!header)
-  {
-   printf("dynlist malloc failed");
-   return NULL;
-  }
-  //initializing dynlist properties; 
-  header->size = 0;
-  header->capacity = initCapacity;
-  header->elemSize = elemSize;
+  dynlist_t* list = calloc(1, sizeof(dynlist_t));
+  list->elemSize = elemSize;
+  list->size = 0;
+  list->capacity = capacity;
+  list->items = malloc(elemSize * capacity);
 
-  //returning data pointer
-  return DYNLIST_DATA_PTR(header);
-  
+  return list;
 }
-void* dynlistPushArray(void* userdata, const void* array, size_t arrayCount)
-{
-  //finding head pointer from data pointer 
-    dynlistHeader* header = DYNLIST_HEADER(userdata);
-    
-  //counting new size
-    size_t newSize = header->size + arrayCount;
-  //if size is bigger than capacitiy reallocating the memory and changing pointers acordingly
-    if (newSize > header->capacity)
-    {
-        while (header->capacity < newSize) 
-        {
-            header->capacity *= 2;
-        }
+
+int dynlistPushList(dynlist_t* dest, dynlist_t* src) {
+    if (!dest || !src || src->elemSize != dest->elemSize) 
+        return -1;
+
+    // Ensure enough capacity
+    size_t required = dest->size + src->size;
+    if (required > dest->capacity) {
+        size_t newCapacity = required * 2;  // Standard growth factor
+        void* newItems = realloc(dest->items, dest->elemSize * newCapacity);
         
-        size_t newTotalSize = sizeof(dynlistHeader) + header->elemSize * header->capacity;
-        dynlistHeader* newHeader = realloc(header, newTotalSize);
-        if (!newHeader) 
-        {
-            printf("dynlist realloc failed\n");
-            return NULL;
-        }
-        header = newHeader;
-        userdata = DYNLIST_DATA_PTR(header);
+        if (!newItems) return -2;
+        
+        dest->items = newItems;
+        dest->capacity = newCapacity;
+    }
+
+    // Copy all elements at once
+    void* destPtr = (char*)dest->items + (dest->size * dest->elemSize);
+    memcpy(destPtr, src->items, src->size * src->elemSize);
+    dest->size += src->size;
+    
+    return 0;
+}
+int dynlistPush(dynlist_t* list, const void* value)
+{
+    if (!list || !value) return -1;
+
+    // Resize if needed (typically double capacity)
+    if (list->size >= list->capacity) {
+        size_t newCapacity = list->capacity * 2;
+        void* newItems = realloc(list->items, list->elemSize * newCapacity);
+        
+        if (!newItems) return -2;
+        
+        list->items = newItems;
+        list->capacity = newCapacity;
+    }
+
+    // Calculate position and copy element
+    void* dest = (char*)list->items + (list->size * list->elemSize);
+    memcpy(dest, value, list->elemSize);
+    list->size++;
+    
+    return 0;
+}
+
+void* dynlistAt(dynlist_t* list, unsigned int index) {
+    if (!list || index >= list->size) return NULL;
+    return (char*)list->items + (index * list->elemSize);
+}
+void dynlistFree(dynlist_t* list)
+{
+    if (!list) return;
+    free(list->items);  // Free the contiguous block
+    free(list);        // Free the container
+}
+
+int dynlistFreeContainerOnly(dynlist_t* list)
+{
+    if(!list) 
+    {
+        printf("dynlistFreeContainerOnly: invalid dynlist\n");
+        return -1;
     }
     
-    //Copying array into dynlist;
-    void* dest = (char*)userdata + (header->size * header->elemSize);
-    memcpy(dest, array, header->elemSize * arrayCount);
-    header->size = newSize;
-    
-    return userdata;
-}
-
-void* dynlistPush(void* userdata, const void* value)
-{
-   return dynlistPushArray(userdata, value, 1);
-}
-
-void* dynlistAt(void* userdata,unsigned int index)
-{
-  //finding header pointer
-  dynlistHeader* header = DYNLIST_HEADER(userdata);
-  //checking out of range exception
-   if(index >= header->size)
-  {
-    printf("index out of range");
-    return NULL;
-  }
-  // returning element pointer
-  return (char*)userdata + (index * header->elemSize);
-
-}
-size_t dynlistSize(void* userdata)
-{
-  //finding header
-  dynlistHeader* header = DYNLIST_HEADER(userdata);
-  if(header)
-  //returning size
-    return header->size;
-  printf("Header pointer not found");
-  return 0;
-}
-void dynlistFree(void* userdata)
-{
-  //Cleaning memory
-  if(userdata)
-  {
-    dynlistHeader* header = DYNLIST_HEADER(userdata);
-    free(header);
-  }
+    // Only free the container structure itself
+    // WITHOUT freeing the individual items or items array
+    free(list);
+    return 0;
 }

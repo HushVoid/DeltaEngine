@@ -13,8 +13,8 @@
 
 typedef struct
 {
-  Texture *texturesLoaded;
-  Mesh *meshes;
+  dynlist_t *texturesLoaded;
+  dynlist_t *meshes;
   char directory[256];
 } Model;
 
@@ -23,7 +23,7 @@ void LoadModel(Model *model, char *path);
 void DrawModel(Model *model, shaderStruct *shader);
 void ProcessNode(Model *model, struct aiNode *Node, const struct aiScene *scene); 
 Mesh* ProcessMesh(Model *model, struct aiMesh *mesh, const struct aiScene *scene);
-Texture* LoadMaterialTextures(Model *model, struct aiMaterial *mat, enum aiTextureType type, char* typeName);
+dynlist_t* LoadMaterialTextures(Model *model, struct aiMaterial *mat, enum aiTextureType type, char* typeName);
 void ExtractDir(const char *path, char *dir);
 void DeleteModel(Model* model);
 unsigned int TextureFromFile(const char *path, const char *directory);

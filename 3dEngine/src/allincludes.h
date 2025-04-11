@@ -1,0 +1,26 @@
+#include "include/SDL2/SDL_main.h"
+#ifdef _WIN32
+#include <windows.h>
+#endif
+#include "include/GL/glew.h"
+#include <GL/GLU.h>
+#include <stdio.h>
+#include <stdbool.h>
+#include "include/SDL2/SDL.h"
+#include "include/SDL2/SDL_video.h"
+#include "math.h"
+#include "shader.h"
+#include "macro.h"
+#include "model.h"
+#include "mesh.h"
+#include "camera.h"
+#include "light.h"
+#include "include/cglm/cglm.h"
+#include "include/assimp/cimport.h"
+#include "include/assimp/scene.h"
+#include "dynlist.h"
+#include "include/generated/dcimgui.h"
+#include "include/generated/backends/dcimgui_impl_sdl2.h"
+#include "include/generated/backends/dcimgui_impl_opengl3.h"
+#define STB_IMAGE_IMPLEMENTATION
+#include "include/STBI/stb_image.h"

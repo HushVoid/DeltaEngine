@@ -1,31 +1,31 @@
 #ifndef DYNLIST_H
 #define DYNLIST_H
 
+#define DEFAULT_INIT_CAPACITY 16
 
 
-#define DYNLIST_DATA_PTR(header_ptr) \
-    ((void*)((char*)(header_ptr) + sizeof(dynlistHeader)))
-
-#define DYNLIST_HEADER(data_ptr) \
-    ((dynlistHeader*)((char*)(data_ptr) - sizeof(dynlistHeader)))
 #include <stdio.h>
 #include <stdlib.h>
+
 
 
 typedef struct
 {
   size_t size;
-  size_t capacity;
   size_t elemSize;
-  void *userdata;
-}dynlistHeader;
+  size_t capacity;
+  void *items;
+}dynlist_t;
 
 
-void* dynlistInit(size_t elemSize, size_t initCapacity);
-void* dynlistPush(void* userdata, const void* value);
-void* dynlistAt(void* userdata,unsigned int index);
-size_t dynlistSize(void* userdata);
-void dynlistFree(void* userdata);
-void* dynlistPushArray(void* userdata, const void* array, size_t arrayCount);
+//FOR INTERNAL USE ONLY!
+
+
+dynlist_t*  dynlistInit(size_t elemSize, size_t capacity);
+int dynlistPush(dynlist_t *list, const void* value);
+int dynlistPushList(dynlist_t *list, dynlist_t* src);
+void* dynlistAt(dynlist_t *list,unsigned int index);
+void dynlistFree(dynlist_t *list);
+int dynlistFreeContainerOnly(dynlist_t* list);
 
 #endif

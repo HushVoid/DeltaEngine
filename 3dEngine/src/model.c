@@ -7,24 +7,28 @@
 #include "mesh.h"
 #include "include/STBI/stb_image.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-
 
 void ModelInit(Model *model, char *path)
 {
- model->texturesLoaded = dynlistInit(sizeof(Texture), 2);
- model->meshes = dynlistInit(sizeof(Mesh), 1);
+
+ model->texturesLoaded = dynlistInit(sizeof(Texture), 4);
+ model->meshes = dynlistInit(sizeof(Mesh), DEFAULT_INIT_CAPACITY);
  LoadModel(model, path);
 }
 
 
-void DrawModel(Model *model, shaderStruct *shader)
+void DrawModel(Model *model, shaderStruct *shader) 
 {
-  for(int i = 0; i < dynlistSize(model->meshes); i++)
-  {
-    //Drawing each mesh of a model
-    Draw(&model->meshes[i], shader);
-  }
+    for(size_t i = 0; i < model->meshes->size; i++) 
+    {
+        Mesh* mesh = dynlistAt(model->meshes, i);
+        if(mesh) 
+        {
+            Draw(mesh, shader);
+        }
+    }
 }
 
 void LoadModel(Model *model, char *path)
@@ -39,30 +43,35 @@ void LoadModel(Model *model, char *path)
  //Assiging directory
   ExtractDir(path, model->directory);
   ProcessNode(model, scene->mRootNode, scene);
+  aiReleaseImport(scene);
 }  
-void ProcessNode(Model *model, struct aiNode *Node, const struct aiScene *scene)
+void ProcessNode(Model *model, struct aiNode *node, const struct aiScene *scene)
 {
-  //Processing each mesh of a node
-  for(unsigned int i = 0; i < Node->mNumMeshes; i++)
-  {
-    struct aiMesh *mesh = scene->mMeshes[Node->mMeshes[i]];
-    model->meshes = dynlistPush(model->meshes, ProcessMesh(model, mesh, scene));
-  }
-  for(unsigned int i = 0; i < Node->mNumChildren; i++)
-  {
-    //If node has children calling this function recursively
-    ProcessNode(model, Node, scene);
-  }
+    for(unsigned int i = 0; i < node->mNumMeshes; i++) 
+    {
+        struct aiMesh *mesh = scene->mMeshes[node->mMeshes[i]]; 
+        Mesh* structMesh = ProcessMesh(model, mesh, scene);
+        if(structMesh) 
+        {
+            dynlistPush(model->meshes, structMesh);
+        }
+        // DON'T free structMesh here - it's owned by model->meshes now
+    }
+    
+    for(unsigned int i = 0; i < node->mNumChildren; i++) 
+    {
+        ProcessNode(model, node->mChildren[i], scene);
+    }
 }
 
 Mesh* ProcessMesh(Model *model, struct aiMesh *mesh, const struct aiScene *scene)
 {
-  //creating mesh in memory
-  Mesh* rMesh = malloc(sizeof(Mesh));
-  //initializing dynlists 
-  Vertex* vertices = dynlistInit(sizeof(Vertex), 1);
-  unsigned int* indices = dynlistInit(sizeof(unsigned int), 1);
-  Texture* textures = dynlistInit(sizeof(Texture), 1);
+    Mesh *rMesh = (Mesh*)calloc(1, sizeof(Mesh));
+    if(!rMesh) return NULL;
+
+    rMesh->vertices = dynlistInit(sizeof(Vertex), mesh->mNumVertices);
+    rMesh->indices = dynlistInit(sizeof(unsigned int), mesh->mNumFaces * 3);
+    rMesh->textures = dynlistInit(sizeof(Texture), 4); // Default texture capacity
 
   for(unsigned int i = 0; i < mesh->mNumVertices; i++)
   {
@@ -75,10 +84,16 @@ Mesh* ProcessMesh(Model *model, struct aiMesh *mesh, const struct aiScene *scene
     pos[2] = mesh->mVertices[i].z;
     glm_vec3_copy(pos, vertex.position);
     //vertex normals
+    if (mesh->mNormals)
+    { 
     pos[0] = mesh->mNormals[i].x;
     pos[1] = mesh->mNormals[i].y;
     pos[2] = mesh->mNormals[i].z;
     glm_vec3_copy(pos, vertex.normal);
+    } else 
+    {
+    glm_vec3_copy((vec3){0.0f, 0.0f, 1.0f}, vertex.normal); // Дефолтное значение
+    }
     //vertex texture coordinates
     if(mesh->mTextureCoords[0])
     {
@@ -92,26 +107,50 @@ Mesh* ProcessMesh(Model *model, struct aiMesh *mesh, const struct aiScene *scene
       glm_vec2_copy((vec2){0.0f,0.0f}, vertex.TexCoords);
     }
     //pushing them into list
-    vertices = dynlistPush(vertices, &vertex);
+    dynlistPush(rMesh->vertices, &vertex);
   }
   for(unsigned int i = 0; i < mesh->mNumFaces; i++)
   {
     //processing indices for each face of a mesh
     struct aiFace face = mesh->mFaces[i];
     for(unsigned int j = 0; j < face.mNumIndices; j++)
-       indices = dynlistPush(indices, &face.mIndices[i]); 
+     dynlistPush(rMesh->indices, &face.mIndices[j]); 
   }  
-  if(mesh->mMaterialIndex >= 0)
+  if(mesh->mMaterialIndex >= 0) 
   {
-    //Loading textures from materials
-    struct aiMaterial *material  = scene->mMaterials[mesh->mMaterialIndex];
-    Texture* diffuseMaps = LoadMaterialTextures(model, material, aiTextureType_DIFFUSE, "texture_diffuse");
-    textures = dynlistPushArray(textures, diffuseMaps, dynlistSize(diffuseMaps));
-    Texture* specualMaps = LoadMaterialTextures(model, material, aiTextureType_SPECULAR, "texture_specular");
-    textures = dynlistPushArray(textures, specualMaps, dynlistSize(specualMaps));
-  }
-  //initializing mesh
-  MeshInit(rMesh, vertices, indices, textures);
+      struct aiMaterial *material = scene->mMaterials[mesh->mMaterialIndex];
+      
+      // Load diffuse maps
+      dynlist_t* diffuseMaps = LoadMaterialTextures(model, material, 
+                                 aiTextureType_DIFFUSE, "texture_diffuse");
+      if(diffuseMaps)
+      {
+          // Transfer ownership of textures to rMesh->textures
+          for(size_t i = 0; i < diffuseMaps->size; i++)
+          {
+              Texture* tex = dynlistAt(diffuseMaps, i);
+              if(tex) dynlistPush(rMesh->textures, tex);
+          }
+          // Free only the container, not the textures
+          dynlistFreeContainerOnly(diffuseMaps);
+      }
+      
+      // Load specular maps
+      dynlist_t* specularMaps = LoadMaterialTextures(model, material,
+                                  aiTextureType_SPECULAR, "texture_specular");
+      if(specularMaps)
+      {
+          // Transfer ownership of textures to rMesh->textures
+          for(size_t i = 0; i < specularMaps->size; i++) 
+          {
+              Texture* tex = dynlistAt(specularMaps, i);
+              if(tex) dynlistPush(rMesh->textures, tex);
+          }
+          // Free only the container, not the textures
+          dynlistFreeContainerOnly(specularMaps);
+      }
+  } //initializing mesh
+  SetupMesh(rMesh);
   return rMesh;
 }
 
@@ -134,7 +173,7 @@ void ExtractDir(const char *path, char *dir)
 unsigned int TextureFromFile(const char *path, const char *directory)
 {
   //concatinating full path
-  char fullPath[512];
+  char fullPath[512] = "\0";
   strcat_s(fullPath, sizeof(fullPath), directory);
   strcat_s(fullPath, sizeof(fullPath), "\\");
   strcat_s(fullPath, sizeof(fullPath), path);
@@ -168,52 +207,61 @@ unsigned int TextureFromFile(const char *path, const char *directory)
   }
   else
   {
-    printf("Texture failed to load at path: %s", fullPath);
+    printf("Texture failed to load at path: %s \n", fullPath);
     stbi_image_free(data);
   }
+  fullPath[0] = '\0';
   return textureID;
 
 }
-Texture* LoadMaterialTextures(Model *model, struct aiMaterial *mat, enum aiTextureType type, char* typeName)
+dynlist_t* LoadMaterialTextures(Model *model, struct aiMaterial *mat, enum aiTextureType type, char* typeName) 
 {
-  Texture* textures = dynlistInit(sizeof(Texture), 1);
-  for(unsigned int i = 0; i < aiGetMaterialTextureCount(mat, type); i++)
-  {
-    struct aiString str;
-    aiGetMaterialTexture(mat,type, i, &str, NULL, NULL, NULL, NULL, NULL, NULL);
-    bool skip = false;
-    for(unsigned int j = 0; j < dynlistSize(model->texturesLoaded); j++)
-    {
-      if(strcmp(model->texturesLoaded[j].path, str.data) == 0)
+    dynlist_t* textures = dynlistInit(sizeof(Texture), DEFAULT_INIT_CAPACITY);
+    unsigned int texCount = aiGetMaterialTextureCount(mat, type);
+    
+    for(unsigned int i = 0; i < texCount; i++) 
       {
-        textures = dynlistPush(textures, &model->texturesLoaded[j]);
-        skip = true;
-        break;
-      }
-    }
-    if(!skip)
-    {
-      Texture texture;
-      texture.id = TextureFromFile(str.data, model->directory);
-      strcpy_s(texture.type, 64, typeName);
-      strcpy_s(texture.path, 512, str.data);
-      textures = dynlistPush(textures, &texture);
-      model->texturesLoaded = dynlistPush(model->texturesLoaded, &texture);
+        struct aiString str;
+        aiGetMaterialTexture(mat, type, i, &str, NULL, NULL, NULL, NULL, NULL, NULL);
+        bool skip = false;
+        
+        for(size_t j = 0; j < model->texturesLoaded->size; j++) 
+        {
+            Texture* texture = dynlistAt(model->texturesLoaded, j);
+            if(texture && strcmp(texture->path, str.data) == 0)
+            {
+                dynlistPush(textures, texture);
+                skip = true;
+                break;
+            }
+        }
+        
+        if(!skip) 
+        {
+            Texture texture;
+            texture.id = TextureFromFile(str.data, model->directory);
+            strcpy_s(texture.type, 63, typeName);
+            texture.type[63] = '\0';
+            strcpy_s(texture.path, 511, str.data);
+            texture.path[511] = '\0';
+            dynlistPush(textures, &texture);
+            dynlistPush(model->texturesLoaded, &texture);
+        }
     }
     return textures;
-
-  }
 }
-void DeleteModel(Model* model)
+void DeleteModel(Model* model) 
 {
-  for(int i = 0; i < dynlistSize(model->meshes); i++)
-  {
-    //Deleting mesh memory
-    DeleteMesh(&model->meshes[i]);
-  }
-  if(model->texturesLoaded)
-  {
-    dynlistFree(model->texturesLoaded);
-  }
-  //Deleting char array memory
+    for(size_t i = 0; i < model->meshes->size; i++)
+    {
+        Mesh* mesh = dynlistAt(model->meshes, i);
+        if(mesh) 
+        {
+            DeleteMesh(mesh);
+        }
+    }
+    if(model->texturesLoaded) 
+    {
+        dynlistFree(model->texturesLoaded);
+    }
 }
