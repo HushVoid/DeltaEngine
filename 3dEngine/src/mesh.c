@@ -60,7 +60,6 @@ void Draw(Mesh *mesh,shaderStruct *shader)
     char result[50] = "\0";
     strcat_s(result , sizeof(result), name);
     strcat_s(result , sizeof(result), number);
-    printf("%s\n", result);
     SetShaderInt(shader, result, i);
     glBindTexture(GL_TEXTURE_2D, currtexture->id);
   }

@@ -18,13 +18,14 @@ typedef struct
 }dynlist_t;
 
 
-//FOR INTERNAL USE ONLY!
 
 
 dynlist_t*  dynlistInit(size_t elemSize, size_t capacity);
 int dynlistPush(dynlist_t *list, const void* value);
 int dynlistPushList(dynlist_t *list, dynlist_t* src);
 void* dynlistAt(dynlist_t *list,unsigned int index);
+int dynlistPop(dynlist_t *list);
+int dynlistDeleteAt(dynlist_t *list,unsigned int index);
 void dynlistFree(dynlist_t *list);
 int dynlistFreeContainerOnly(dynlist_t* list);
 

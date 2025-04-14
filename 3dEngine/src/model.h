@@ -1,6 +1,9 @@
 #ifndef MODEL_H
 #define MODEL_H
 
+//INTERNAL USE ONLY
+#define MISSING_TEXTURE_PATH "E:\\projects\\deltaengine\\3dengine\\textures\\missing.jpg\0"
+
 #include "include/cglm/cglm.h"
 #include "include/GL/glew.h"
 #include "dynlist.h"
@@ -13,8 +16,8 @@
 
 typedef struct
 {
-  dynlist_t *texturesLoaded;
-  dynlist_t *meshes;
+  dynlist_t *texturesLoaded; //dynlist<Texture>
+  dynlist_t *meshes; //dynlist<Mesh>
   char directory[256];
 } Model;
 
@@ -26,6 +29,7 @@ Mesh* ProcessMesh(Model *model, struct aiMesh *mesh, const struct aiScene *scene
 dynlist_t* LoadMaterialTextures(Model *model, struct aiMaterial *mat, enum aiTextureType type, char* typeName);
 void ExtractDir(const char *path, char *dir);
 void DeleteModel(Model* model);
+//FOR INTERNAL USE ONLY
 unsigned int TextureFromFile(const char *path, const char *directory);
 
 

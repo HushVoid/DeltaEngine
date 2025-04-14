@@ -86,3 +86,42 @@ int dynlistFreeContainerOnly(dynlist_t* list)
     free(list);
     return 0;
 }
+int dynlistPop(dynlist_t *list)
+{
+  dynlistDeleteAt(list, list->size - 1);
+  return 0;
+}
+int dynlistDeleteAt(dynlist_t *list,unsigned int index)
+{
+  if(!list)
+  {
+    printf("dynlistDeleteAt: invalid dynlist\n");
+    return -1;
+  }
+  if(index >= list->size)
+  {
+    printf("dynlistDeleteAt: index out of range");
+    return -2;
+  }
+  void* item = (char*)list->items + index * list->elemSize;
+  void* src = (char*)item + list->elemSize;
+  size_t bytesToMove = (list->size - index - 1) * list->elemSize;
+  if(bytesToMove > 0)
+  {
+    memmove(item, src, bytesToMove);
+  }
+  list->size--;
+  if(list->size * 4 < list->capacity && list->capacity > DEFAULT_INIT_CAPACITY)
+  {
+    size_t newCapacity = list->capacity / 2;
+    void* newItems = realloc(list->items, newCapacity * list->elemSize);
+    if(!newItems)
+    {
+      printf("dynlistDeleteAt: can not reallocate memory\n");
+      return -3;
+    }
+    list->items = newItems;
+    list->capacity = newCapacity;
+  }
+  return 0;
+}

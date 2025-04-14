@@ -1,5 +1,5 @@
 CC = gcc
-LIB = -lstdc++ -L src\lib -lmingw32 -lSDL2main -lSDL2 -lopengl32 -lglu32 -lglew32 -lcimgui -lassimp
+LIB = -lstdc++ -L src\lib -lmingw32 -lSDL2main -lSDL2 -lopengl32 -lglu32 -lglew32 -lcimgui -lassimp -lcJSON
 INCDIRS = -Isrc\include -Isrc\include\imgui -Isrc\include\imgui\backends -Isrc\include\generated -Isrc\include\generated\backends
 
 # Список исходных файлов
@@ -21,8 +21,12 @@ GEN_OBJS = \
     $(OBJ_DIR)/dcimgui_impl_sdl2.o \
     $(OBJ_DIR)/dcimgui_impl_opengl3.o
 
+CJSON_OBJS = \
+		$(OBJ_DIR)/cJSON.o
+
 OBJECTS = $(patsubst src/%.c,$(OBJ_DIR)/%.o,$(SOURCES))
 LIBRARY = src/lib/libcimgui.a
+JSON = src/lib/cJSON.a
 
 # Флаги компиляции
 CFLAGS = $(INCDIRS) -Wall 
@@ -32,7 +36,7 @@ LDFLAGS = -static-libgcc -static-libstdc++
 # Правила
 .PHONY: all clean
 
-all: $(LIBRARY) main.exe
+all: $(LIBRARY) $(JSON) main.exe
 	@echo Build completed!
 	main.exe
 	
@@ -40,6 +44,10 @@ main.exe: $(OBJECTS) $(LIBRARY)
 	$(CC) $^ -o $@ $(LIB) $(CFLAGS) $(LDFLAGS)
 
 $(LIBRARY): $(IMGUI_OBJS) $(GEN_OBJS)
+	@if not exist "$(@D)" mkdir "$(@D)"
+	ar rcs $@ $^
+
+$(JSON): $(CJSON_OBJS)
 	@if not exist "$(@D)" mkdir "$(@D)"
 	ar rcs $@ $^
 
@@ -51,22 +59,26 @@ $(OBJ_DIR)/%.o: src/%.c
 # Правило для компиляции .cpp файлов из директории imgui
 $(OBJ_DIR)/%.o: src/include/imgui/%.cpp
 	@if not exist "$(@D)" mkdir "$(@D)"
-	$(CC) $(CXXFLAGS) -c $< -o $@
+	$(CC) $(CCFLAGS) -c $< -o $@
 
 # Правило для компиляции .cpp файлов из директории backends
 $(OBJ_DIR)/%.o: src/include/imgui/backends/%.cpp
 	@if not exist "$(@D)" mkdir "$(@D)"
-	$(CC) $(CXXFLAGS) -c $< -o $@
+	$(CC) $(CCFLAGS) -c $< -o $@
 
 # Правило для компиляции .cpp файлов из директории generated
 $(OBJ_DIR)/%.o: src/include/generated/%.cpp
 	@if not exist "$(@D)" mkdir "$(@D)"
-	$(CC) $(CXXFLAGS) -c $< -o $@
+	$(CC) $(CCFLAGS) -c $< -o $@
 
 # Правило для компиляции .cpp файлов из директории generated/backends
 $(OBJ_DIR)/%.o: src/include/generated/backends/%.cpp
 	@if not exist "$(@D)" mkdir "$(@D)"
-	$(CC) $(CXXFLAGS) -c $< -o $@
+	$(CC) $(CCFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: src/include/cJSON/%.c
+	@if not exist "$(@D)" mkdir "$(@D)"
+	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
 	@if exist "$(OBJ_DIR)" rmdir /s /q "$(OBJ_DIR)"

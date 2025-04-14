@@ -22,9 +22,9 @@ typedef struct
 
 typedef struct
 {
-  dynlist_t *vertices;
-  dynlist_t  *indices;
-  dynlist_t *textures;
+  dynlist_t *vertices; //dynlist<Vertex>
+  dynlist_t  *indices; //dynlist<unsigned int>
+  dynlist_t *textures; //dynlist <Texture>
   
   unsigned int VAO;
   unsigned int VBO;

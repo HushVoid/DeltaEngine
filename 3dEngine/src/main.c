@@ -1,7 +1,7 @@
 #include "allincludes.h"
 
-#define WIDTH 1280
-#define HEIGHT 720
+#define WIDTH 1600
+#define HEIGHT 900
 
 static struct
 {
@@ -54,11 +54,11 @@ static ImVec4 clearColor = {0.1f, 0.1f, 0.1f, 1.0f};
 //static ImVec4 meshColor = { 1.0f, 1.0f, 1.0f, 1.0f};
 static float f = 0.0f;
 static PointLight pointLights[4];
-static Model model;
-static Model *pModel = &model;
+dynlist_t * models;
 static shaderStruct modelshader;
 static vec3 modelPos;
-void Render(shaderStruct*objectshader,shaderStruct*lightShader,ImGuiIO* io, GLuint vao, GLuint lightVAO, GLuint* textures, float time)
+static vec3 modelPos1;
+void Render(shaderStruct*lightShader,ImGuiIO* io, GLuint lightVAO, GLuint* textures, float time)
 { 
   cImGui_ImplOpenGL3_NewFrame();
   cImGui_ImplSDL2_NewFrame();
@@ -92,6 +92,7 @@ void Render(shaderStruct*objectshader,shaderStruct*lightShader,ImGuiIO* io, GLui
       ImGui_ColorEdit3("point light diffuse color", pointLights[lightIndex].diffuse , ImGuiColorEditFlags_None); // Edit 3 floats representing a color
       ImGui_ColorEdit3("point light specular color", pointLights[lightIndex].specular , ImGuiColorEditFlags_None); // Edit 3 floats representing a color
       ImGui_InputFloat3("model position", modelPos);
+      ImGui_InputFloat3("model position1", modelPos1);
       ImGui_Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io->Framerate, io->Framerate);
       ImGui_End();
   }
@@ -116,7 +117,15 @@ void Render(shaderStruct*objectshader,shaderStruct*lightShader,ImGuiIO* io, GLui
   UseShader(&modelshader);
   SetShaderMatrix4f(&modelshader, "model", modelMat);
   SetShaderMatrix3f(&modelshader,"normalMatrix", normalMatrix);
-  DrawModel(pModel, &modelshader);
+  DrawModel((Model*)(dynlistAt(models, 0)), &modelshader);
+  glm_translate(modelMat, modelPos1); 
+  glm_mat4_pick3(modelMat, normalMatrix);
+  glm_mat3_inv(normalMatrix, normalMatrix);
+  glm_mat3_transpose(normalMatrix);
+  UseShader(&modelshader);
+  SetShaderMatrix4f(&modelshader, "model", modelMat);
+  SetShaderMatrix3f(&modelshader,"normalMatrix", normalMatrix);
+  DrawModel((Model*)(dynlistAt(models, 1)), &modelshader);
   cImGui_ImplOpenGL3_RenderDrawData(ImGui_GetDrawData());
   SDL_GL_SwapWindow(state.window);
 }
@@ -125,6 +134,9 @@ void Render(shaderStruct*objectshader,shaderStruct*lightShader,ImGuiIO* io, GLui
 int main(int argc, char** argv)
 {
 
+  models = dynlistInit(sizeof(Model), DEFAULT_INIT_CAPACITY);
+  Model backpack;
+  Model cube; 
   //SDL
   SDL_Init(SDL_INIT_EVERYTHING);
   state.window = SDL_CreateWindow("Delta", SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,WIDTH,HEIGHT,SDL_WINDOW_OPENGL);
@@ -162,7 +174,6 @@ int main(int argc, char** argv)
   shaderStruct lightShader;
   InitializeCamera(&mainCamera, (vec3){0.0f,0.0f,-3.0f}, (vec3){0.0f, 1.0f, 0.0f}, DEFAULT_CAM_YAW, DEFAULT_CAM_PITCH, 0.1f, 100.f);
 unsigned int VBO; 
-unsigned int VAO;
 
 float vertices[] = {//3 vertex coords //2 texture coords //3 normals
     -0.5f, -0.5f, -0.5f,  0.0f, 0.0f, 0.0f,  0.0f, -1.0f,
@@ -207,28 +218,16 @@ float vertices[] = {//3 vertex coords //2 texture coords //3 normals
     -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,  0.0f,  1.0f,  0.0f,
     -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,  0.0f,  1.0f,  0.0f
 };
-  glGenVertexArrays(1,&VAO);
   glGenBuffers(1,&VBO);
 
 
-  glBindVertexArray(VAO);  
   glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
   glBufferData(GL_ARRAY_BUFFER,sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-  glEnableVertexAttribArray(0);
-  
-  glVertexAttribPointer(1,2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 *sizeof(float)));
-  glEnableVertexAttribArray(1);
-  glVertexAttribPointer(2,3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(5 *sizeof(float)));
-  glEnableVertexAttribArray(2);
 
 
   glBindBuffer(GL_ARRAY_BUFFER,0);
-
-  glBindVertexArray(0);
-
   unsigned int lightVAO;
   glGenVertexArrays(1,&lightVAO);
   glBindVertexArray(lightVAO);
@@ -264,7 +263,12 @@ float vertices[] = {//3 vertex coords //2 texture coords //3 normals
   CreateShader(&lightShader, "e:\\projects\\deltaengine\\3dengine\\shaders\\lightCubeVertex.vs","e:\\projects\\deltaengine\\3dengine\\shaders\\lightFragmentShader.fs");
   CreateShader(&modelshader, "E:\\projects\\deltaengine\\3dengine\\shaders\\modelvertex.vs", "E:\\projects\\deltaengine\\3dengine\\shaders\\modelfragment.fs");
   
-  ModelInit(pModel, "E:\\projects\\deltaengine\\3dengine\\resources\\models\\backpack\\backpack.obj");
+  ModelInit(&backpack, "E:\\projects\\deltaengine\\3dengine\\resources\\models\\backpack\\backpack.obj");
+  printf("cubik\n");
+  ModelInit(&cube, "E:\\projects\\deltaengine\\3dengine\\resources\\models\\Cube\\cube.obj");
+  dynlistPush(models, &backpack);
+  dynlistPush(models, &cube);
+
   stbi_image_free(data);
   mat4 view;
   mat4 projection;
@@ -297,11 +301,15 @@ float vertices[] = {//3 vertex coords //2 texture coords //3 normals
     UseShader(&modelshader);
     SetShaderFloat(&modelshader,"time", time);
     SetShaderMatrix4f(&modelshader,"view", view);
-    Render(&objectshader,&lightShader,ioptr,VAO,lightVAO,textures,time);
+    Render(&lightShader,ioptr,lightVAO,textures,time);
    // SDL_Delay(1);
     lastTickTime = time;
   }
-  DeleteModel(pModel);
+  for(int i = 0; i < models->size; i++)
+  {
+    DeleteModel(dynlistAt(models,i));
+  }
+  dynlistFree(models);
   cImGui_ImplSDL2_Shutdown();
   cImGui_ImplOpenGL3_Shutdown();
   ImGui_DestroyContext(NULL);

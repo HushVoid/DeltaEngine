@@ -115,41 +115,55 @@ Mesh* ProcessMesh(Model *model, struct aiMesh *mesh, const struct aiScene *scene
     struct aiFace face = mesh->mFaces[i];
     for(unsigned int j = 0; j < face.mNumIndices; j++)
      dynlistPush(rMesh->indices, &face.mIndices[j]); 
-  }  
-  if(mesh->mMaterialIndex >= 0) 
+  }
+  if(mesh->mMaterialIndex > 0) 
   {
       struct aiMaterial *material = scene->mMaterials[mesh->mMaterialIndex];
-      
-      // Load diffuse maps
-      dynlist_t* diffuseMaps = LoadMaterialTextures(model, material, 
-                                 aiTextureType_DIFFUSE, "texture_diffuse");
-      if(diffuseMaps)
+      if(aiGetMaterialTextureCount(material, aiTextureType_DIFFUSE) == 0)
       {
-          // Transfer ownership of textures to rMesh->textures
-          for(size_t i = 0; i < diffuseMaps->size; i++)
-          {
-              Texture* tex = dynlistAt(diffuseMaps, i);
-              if(tex) dynlistPush(rMesh->textures, tex);
-          }
-          // Free only the container, not the textures
-          dynlistFreeContainerOnly(diffuseMaps);
+       Texture texture;
+       texture.id = TextureFromFile("", MISSING_TEXTURE_PATH);
+       strcpy(texture.type, "texture_diffuse");
+       strcpy(texture.path, MISSING_TEXTURE_PATH);
+       dynlistPush(rMesh->textures, &texture);
+       dynlistPush(model->texturesLoaded, &texture);
       }
-      
-      // Load specular maps
-      dynlist_t* specularMaps = LoadMaterialTextures(model, material,
-                                  aiTextureType_SPECULAR, "texture_specular");
-      if(specularMaps)
+      else
       {
-          // Transfer ownership of textures to rMesh->textures
-          for(size_t i = 0; i < specularMaps->size; i++) 
-          {
-              Texture* tex = dynlistAt(specularMaps, i);
-              if(tex) dynlistPush(rMesh->textures, tex);
-          }
-          // Free only the container, not the textures
-          dynlistFreeContainerOnly(specularMaps);
+
+        // Load diffuse maps
+        dynlist_t* diffuseMaps = LoadMaterialTextures(model, material, 
+                                   aiTextureType_DIFFUSE, "texture_diffuse");
+        if(diffuseMaps)
+        {
+            // Transfer ownership of textures to rMesh->textures
+            for(size_t i = 0; i < diffuseMaps->size; i++)
+            {
+                Texture* tex = dynlistAt(diffuseMaps, i);
+                if(tex) dynlistPush(rMesh->textures, tex);
+            }
+            // Free only the container, not the textures
+            dynlistFreeContainerOnly(diffuseMaps);
+        }
+        
+        
+        // Load specular maps
+        dynlist_t* specularMaps = LoadMaterialTextures(model, material,
+                                    aiTextureType_SPECULAR, "texture_specular");
+        if(specularMaps)
+        {
+            // Transfer ownership of textures to rMesh->textures
+            for(size_t i = 0; i < specularMaps->size; i++) 
+            {
+                Texture* tex = dynlistAt(specularMaps, i);
+                if(tex) dynlistPush(rMesh->textures, tex);
+            }
+            // Free only the container, not the textures
+            dynlistFreeContainerOnly(specularMaps);
+        }
+        
       }
-  } //initializing mesh
+  }
   SetupMesh(rMesh);
   return rMesh;
 }
@@ -172,11 +186,17 @@ void ExtractDir(const char *path, char *dir)
 }
 unsigned int TextureFromFile(const char *path, const char *directory)
 {
-  //concatinating full path
   char fullPath[512] = "\0";
-  strcat_s(fullPath, sizeof(fullPath), directory);
-  strcat_s(fullPath, sizeof(fullPath), "\\");
-  strcat_s(fullPath, sizeof(fullPath), path);
+  if(strcmp(directory, MISSING_TEXTURE_PATH) == 0)
+  {  
+    printf("Loading model without texture\n");
+  }
+  else
+  { 
+    strcat_s(fullPath, sizeof(fullPath), directory);
+    strcat_s(fullPath, sizeof(fullPath), "\\");
+    strcat_s(fullPath, sizeof(fullPath), path);
+  }
 
   //generating texture
   unsigned int textureID;
@@ -209,6 +229,19 @@ unsigned int TextureFromFile(const char *path, const char *directory)
   {
     printf("Texture failed to load at path: %s \n", fullPath);
     stbi_image_free(data);
+    data = stbi_load(MISSING_TEXTURE_PATH, &width, &height, &nrComponents, 0);
+    glBindTexture(GL_TEXTURE_2D, textureID);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+    glGenerateMipmap(GL_TEXTURE_2D);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    stbi_image_free(data);
+
+
   }
   fullPath[0] = '\0';
   return textureID;
