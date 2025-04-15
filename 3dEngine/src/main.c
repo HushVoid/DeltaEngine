@@ -12,20 +12,7 @@ static struct
     const Uint8 *keyboardStates;
     bool IsGameRuning;
     bool isMouseLocked;
-    bool showDemoWindow;
-    bool showAnotherWindow;
 } state;
-
-static vec3 cubePositions[] = 
-    {
-      {0.0f,  0.0f,  0.0f},
-      {2.0f,  5.0f, -15.0f},
-      {-1.5f, -2.2f, -2.5f},
-      {-3.8f, -2.0f, -12.3f},
-      {2.4f, -0.4f, -3.5f},
-      {1.5f,  2.0f, -2.5f}
-    };
-void Update(Camera *camera,float deltaTime, shaderStruct *shader);
 
 static struct
 {
@@ -63,46 +50,6 @@ void Render(shaderStruct*lightShader,ImGuiIO* io, GLuint lightVAO, GLuint* textu
   cImGui_ImplOpenGL3_NewFrame();
   cImGui_ImplSDL2_NewFrame();
   ImGui_NewFrame();
- {
-      static int counter = 0;
-      static int lightIndex = 0;
-
-      ImGui_Begin("Inspecta!", NULL, ImGuiWindowFlags_None);                          // Create a window called "Hello, world!" and append into it.
-
-      ImGui_Text("This is some useful text.");               // Display some text (you can use a format strings too)
-      ImGui_Checkbox("Demo Window", &state.showDemoWindow);      // Edit bools storing our window open/close state
-      ImGui_Checkbox("Material Window", &state.showAnotherWindow);
-      //ImGui_SliderFloat("Mix value", &f, 0, 1);
-      ImGui_ColorEdit3("clear color", (float*)&clearColor , ImGuiColorEditFlags_None); // Edit 3 floats representing a color
- //     ImGui_ColorEdit3("cube color", (float*)&meshColor , ImGuiColorEditFlags_None); // Edit 3 floats representing a color
-      if(ImGui_ArrowButton("plus", ImGuiDir_Up))
-      {
-        if(lightIndex < 3)
-          lightIndex++;
-      }
-      if(ImGui_ArrowButton("minus", ImGuiDir_Down))
-      {
-        if(lightIndex > 0)
-          lightIndex--;
-      }
-      ImGui_Text("point light number = %d", lightIndex);
-      
-      ImGui_InputFloat3("point light position", pointLights[lightIndex].position);
-      ImGui_ColorEdit3("point light ambient color", pointLights[lightIndex].ambient , ImGuiColorEditFlags_None); // Edit 3 floats representing a color
-      ImGui_ColorEdit3("point light diffuse color", pointLights[lightIndex].diffuse , ImGuiColorEditFlags_None); // Edit 3 floats representing a color
-      ImGui_ColorEdit3("point light specular color", pointLights[lightIndex].specular , ImGuiColorEditFlags_None); // Edit 3 floats representing a color
-      ImGui_InputFloat3("model position", modelPos);
-      ImGui_InputFloat3("model position1", modelPos1);
-      ImGui_Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io->Framerate, io->Framerate);
-      ImGui_End();
-  }
-  if(state.showAnotherWindow)
-  {
-      ImGui_Begin("Material", NULL, ImGuiWindowFlags_None);
-  
-      ImGui_SliderFloat("Shininess", &material.shininess, 0.0f, 512.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-      ImGui_End();
-  }
   ImGui_Render();
   glViewport(0, 0,WIDTH , HEIGHT);
   glClearColor(clearColor.x * clearColor.w, clearColor.y * clearColor.w, clearColor.z * clearColor.w, clearColor.w);
@@ -144,13 +91,13 @@ int main(int argc, char** argv)
   //Logic
   state.isMouseLocked = true;
   state.IsGameRuning = true;
-  state.showDemoWindow = true;
 
 //OpenGL
   state.glContext = SDL_GL_CreateContext(state.window);
   glewInit();
   SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 32);
   glEnable(GL_DEPTH_TEST);
+  glEnable(GL_CULL_FACE);
 //ImGUI
    ImGui_CreateContext(NULL);
    ImGuiIO* ioptr = ImGui_GetIO();
@@ -161,18 +108,13 @@ int main(int argc, char** argv)
 //stbi
   stbi_set_flip_vertically_on_load(true); 
 
-  for(int i = 0; i < 4; i++)
-  {  
-  InitDefaultPointLight(&pointLights[i], (vec3){0.0, -1 + i,  -i * 2}, 50.0f);
-  }
+
 
 
   material.shininess = 2.0f;
 
-  Camera mainCamera;
   shaderStruct objectshader;
   shaderStruct lightShader;
-  InitializeCamera(&mainCamera, (vec3){0.0f,0.0f,-3.0f}, (vec3){0.0f, 1.0f, 0.0f}, DEFAULT_CAM_YAW, DEFAULT_CAM_PITCH, 0.1f, 100.f);
 unsigned int VBO; 
 
 float vertices[] = {//3 vertex coords //2 texture coords //3 normals
@@ -272,7 +214,6 @@ float vertices[] = {//3 vertex coords //2 texture coords //3 normals
   stbi_image_free(data);
   mat4 view;
   mat4 projection;
-  glm_perspective(DEG2RAD(mainCamera.fov), WIDTH / HEIGHT, 0.1f, 100.0f, projection); 
   UseShader(&objectshader);
   SetShaderInt(&objectshader, "material.diffuse", 0);
   SetShaderInt(&objectshader, "material.specular", 1);
@@ -290,11 +231,8 @@ float vertices[] = {//3 vertex coords //2 texture coords //3 normals
     int i = 0;
     float time = SDL_GetTicks();
     state.deltaTime = (time - lastTickTime) / 1000.0f;
-    Update(&mainCamera,state.deltaTime,&objectshader);
     SetShaderFloat(&objectshader,"time", time);
-    GetViewMatrixFromCamera(mainCamera, view);
     SetShaderMatrix4f(&objectshader, "view", view);
-    SetShaderFloat3(&objectshader, "viewPos", mainCamera.position);
     UseShader(&lightShader);
     SetShaderFloat(&lightShader,"time", time);
     SetShaderMatrix4f(&lightShader,"view", view);
@@ -320,25 +258,8 @@ float vertices[] = {//3 vertex coords //2 texture coords //3 normals
 
 
 
-void Update(Camera *camera,float deltaTime,shaderStruct *shader)
+void Update(float deltaTime,shaderStruct *shader)
 {
-    state.keyboardStates = SDL_GetKeyboardState(NULL);
-    if(isKeyDown(SDL_SCANCODE_W))
-    {
-      UpdateCameraMovement(camera, FORWARD, deltaTime);
-    }
-    if(isKeyDown(SDL_SCANCODE_S))
-    {
-      UpdateCameraMovement(camera, BACKWARD, deltaTime);
-    }
-    if(isKeyDown(SDL_SCANCODE_A))
-    {
-      UpdateCameraMovement(camera, LEFT, deltaTime);
-    }
-    if(isKeyDown(SDL_SCANCODE_D))
-    {
-      UpdateCameraMovement(camera, RIGHT, deltaTime);
-    }
     while(SDL_PollEvent(&state.event) != 0)
     {
       cImGui_ImplSDL2_ProcessEvent(&state.event);
@@ -349,8 +270,6 @@ void Update(Camera *camera,float deltaTime,shaderStruct *shader)
         float dx, dy;
         dx = state.event.motion.xrel;
         dy = state.event.motion.yrel;
-        if(state.isMouseLocked)
-        ProcessMouseMovement(camera, dx, dy, true);
       }
       if(state.event.type == SDL_KEYDOWN)
       {

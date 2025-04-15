@@ -16,17 +16,14 @@ typedef struct
 {
   vec3 direction;
 
-  vec3 ambient;
-  vec3 diffuse;
-  vec3 specular;
+  vec3 color;
 } DirLight;
 
 typedef struct 
 {
 
-  vec3 ambient;
-  vec3 diffuse;
-  vec3 specular;
+
+  vec3 color;
 
   float constant;
   float linear;
@@ -37,16 +34,12 @@ typedef struct
 {
   vec3 direction;
 
-  vec3 ambient;
-  vec3 diffuse;
-  vec3 specular;
+
+  vec3 color;
 
   float cutOff;
   float outerCutOff;
 } SpotLight;
 
-void InitDefaultDirLight(DirLight *light, vec3 direction);
-void InitDefaultPointLight(PointLight *light, vec3 position, float distance);
-void InitDefaultSpotLight(SpotLight *light, vec3 position, vec3 direction, float cutOff, float outerCutOff);
 
 #endif // !LIGHT_H

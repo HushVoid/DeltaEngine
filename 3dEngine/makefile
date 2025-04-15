@@ -3,7 +3,7 @@ LIB = -lstdc++ -L src\lib -lmingw32 -lSDL2main -lSDL2 -lopengl32 -lglu32 -lglew3
 INCDIRS = -Isrc\include -Isrc\include\imgui -Isrc\include\imgui\backends -Isrc\include\generated -Isrc\include\generated\backends
 
 # Список исходных файлов
-SOURCES = src/main.c src/shader.c src/fileread.c src/camera.c src/light.c src/dynlist.c src/mesh.c src/model.c 
+SOURCES = src/main.c src/shader.c src/fileread.c src/camera.c  src/dynlist.c src/mesh.c src/model.c 
 
 # Пути и объектные файлы
 OBJ_DIR = obj
@@ -26,7 +26,7 @@ CJSON_OBJS = \
 
 OBJECTS = $(patsubst src/%.c,$(OBJ_DIR)/%.o,$(SOURCES))
 LIBRARY = src/lib/libcimgui.a
-JSON = src/lib/cJSON.a
+JSON = src/lib/libcJSON.a
 
 # Флаги компиляции
 CFLAGS = $(INCDIRS) -Wall 

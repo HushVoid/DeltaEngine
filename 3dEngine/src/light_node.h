@@ -4,6 +4,8 @@
 #include "spatial_node.h"
 #include "light.h"
 
+
+
 typedef struct
 {
   SpatialNode base;
@@ -16,6 +18,7 @@ typedef struct
   SpatialNode base;
   PointLight light;
   float intencity;
+  float distance;
 } PointLightNode;
 
 typedef struct
@@ -23,11 +26,16 @@ typedef struct
   SpatialNode base;
   SpotLight light;
   float intencity;
-  float distance;
 } SpotLightNode;
+
+
 
 DirectionalLightNode* DLightCreate(const char* name, float intencity, vec3 direction);
 PointLightNode* PLightCreate(const char* name, float intencity, vec3 direction);
 SpotLightNode* SLightCreate(const char* name, float intencity);
+
+void DLightFree(DirectionalLightNode* light);
+void PLightFree(PointLightNode* light);
+void SLightFree(SpotLightNode* light);
 
 #endif // !LIGHT_NODE_H

@@ -13,7 +13,6 @@
 #include "macro.h"
 #include "model.h"
 #include "mesh.h"
-#include "camera.h"
 #include "light.h"
 #include "include/cglm/cglm.h"
 #include "include/assimp/cimport.h"
