@@ -15,7 +15,6 @@
 typedef struct 
 {
   vec3 direction;
-
   vec3 color;
 } DirLight;
 

@@ -22,6 +22,7 @@ void   SpatialNodeUpdateGlobalTransform(SpatialNode* node);
 
 void   SpatialNodeUpdate(SpatialNode* node, float delta);
 
-
+void SpatialNodeToJSON(const SpatialNode* node, cJSON* root);
+SpatialNode* SpatialNodeFromJSON(const cJSON* json);
 
 #endif // !SPATIAL_NODE_H

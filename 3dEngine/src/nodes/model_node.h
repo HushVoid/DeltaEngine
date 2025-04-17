@@ -2,7 +2,7 @@
 #define MODEL_NODE_H
 
 #include "spatial_node.h"
-#include "model.h"
+#include "../model.h"
 
 typedef enum
 {
@@ -23,7 +23,13 @@ typedef struct
 ModelNode*   ModelNodeCreate(ShapeType type, const char* name, const char* modelPath);
 void  ModelNodeFree(ModelNode* node);
 
+
+const char* ShapeTypeToStr(ShapeType type);
+ShapeType StrToShapeType(const char* string);
 void ModelNodeUpdate(ModelNode* node, float delta);
+
+void ModelNodeToJSON(const ModelNode* node, cJSON* root);
+ModelNode* ModelNodeFromJSON(const cJSON* json);
 
 
 #endif // !MODEL_NODE_H

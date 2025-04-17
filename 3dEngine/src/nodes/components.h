@@ -1,11 +1,12 @@
 #ifndef COMPONENTS_H
 #define COMPONENTS_H
 
-#include "dynlist.h"
+#include "../dynlist.h"
 #include <stdbool.h>
-#include "include/cglm/cglm.h"
-#include "model.h"
-#include "mesh.h"
+#include "../include/cglm/cglm.h"
+#include "../model.h"
+#include "../mesh.h"
+#include "../include/cJSON/cJSON.h"
 
 typedef struct 
 {
@@ -24,7 +25,7 @@ void TransformUpdateMatrix(Transform* t);
     glm_scale(t->localMatrix, t->scale);
 }*/
 
-
+cJSON* TransformToJSON(const Transform* t);
 
 
 

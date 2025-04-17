@@ -109,6 +109,9 @@ int main(int argc, char** argv)
   stbi_set_flip_vertically_on_load(true); 
 
 
+  Node* myNode = NodeCreate("dobro node");
+  printf("node created named: %s\n", myNode->name);
+
 
 
   material.shininess = 2.0f;

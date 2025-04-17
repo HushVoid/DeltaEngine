@@ -2,7 +2,7 @@
 #define LIGHT_NODE_H
 
 #include "spatial_node.h"
-#include "light.h"
+#include "../light.h"
 
 
 
@@ -31,11 +31,18 @@ typedef struct
 
 
 DirectionalLightNode* DLightCreate(const char* name, float intencity, vec3 direction);
-PointLightNode* PLightCreate(const char* name, float intencity, vec3 direction);
-SpotLightNode* SLightCreate(const char* name, float intencity);
+PointLightNode* PLightCreate(const char* name, float intencity, float distance);
+SpotLightNode* SLightCreate(const char* name, float intencity, vec3 direction);
 
 void DLightFree(DirectionalLightNode* light);
 void PLightFree(PointLightNode* light);
 void SLightFree(SpotLightNode* light);
 
+void DLightToJSON(const DirectionalLightNode* light, cJSON* root);
+void PLightToJSON(const PointLightNode* light, cJSON* root);
+void SLightToJSON(const SpotLightNode* light, cJSON* root);
+
+DirectionalLightNode* DLightFromJSON(const cJSON* json);
+PointLightNode* PLightFromJSON(const cJSON* json);
+SpotLightNode* SLightFromJSON(const cJSON* json);
 #endif // !LIGHT_NODE_H

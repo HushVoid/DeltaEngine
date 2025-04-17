@@ -2,10 +2,10 @@
 #define NODE_H
 #define NODE_CAST(T, node_ptr) ((T*)((node_ptr)->type == NODE_##T ? node_ptr : NULL))
 
-#include "dynlist.h"
+#include "../dynlist.h"
 #include <stdbool.h>
-#include "include/cglm/cglm.h"
-#include "include/cJSON/cJSON.h"
+#include "../include/cglm/cglm.h"
+#include "../include/cJSON/cJSON.h"
  
 typedef enum 
 {
@@ -42,8 +42,10 @@ void NodeDeleteChild_Index(Node* parent, unsigned int index); //By index
 void NodeReparent(Node* node, Node* newParent);
 bool NodeCanHaveChilder(Node* node);
 
-//TODO
+//(De)Serialisation
+const char* NodeT2Str(NodeType type);
+NodeType Str2NodeT(const char* type);
 char* NodeToJSON(const Node* node);
-Node* NodeFromJSON(const char* json);
+Node* NodeFromJSON(const cJSON* json);
 
 #endif // !NODE_H

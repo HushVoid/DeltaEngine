@@ -7,5 +7,6 @@
 
 
 char *ReadFromFile(const char* filename);
+void *WriteToFile(const char* filename, const char* string);
 
 #endif

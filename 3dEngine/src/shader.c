@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "fileread.h"
+#include "filehandle.h"
 #include "light.h"
 
 //creates shader programm
@@ -112,104 +112,5 @@ void SetShaderMatrix3f(shaderStruct* shader, const char* name, mat3 matrix)
 }
 
 
-//Setting light structs 
-
-void SetDirLightStruct(shaderStruct* shader, const char* name, DirLight light)
-{
- char variable[30];
- //setting main light components
- strcat_s(variable, sizeof(variable), name);
- strcat_s(variable, sizeof(variable), ".ambient");  
- SetShaderFloat3(shader, variable, light.ambient);
- variable[0] = '\0';
- strcat_s(variable, sizeof(variable), name);
- strcat_s(variable, sizeof(variable), ".diffuse");  
- SetShaderFloat3(shader, variable, light.diffuse);
- variable[0] = '\0';
- strcat_s(variable, sizeof(variable), name);
- strcat_s(variable, sizeof(variable), ".specular");  
- SetShaderFloat3(shader, variable, light.specular);
-
-//setting direction
- variable[0] = '\0';
- strcat_s(variable, sizeof(variable), name);
- strcat_s(variable, sizeof(variable), ".direction");
- SetShaderFloat3(shader, variable, light.direction);
-}
 
 
-void SetPointLightStruct(shaderStruct* shader, const char* name, PointLight light)
-{ 
- //setting main light components
- char variable[30];
- strcat_s(variable, sizeof(variable), name);
- strcat_s(variable, sizeof(variable), ".ambient");  
- SetShaderFloat3(shader, variable, light.ambient);
- variable[0] = '\0';
- strcat_s(variable, sizeof(variable), name);
- strcat_s(variable, sizeof(variable), ".diffuse");  
- SetShaderFloat3(shader, variable, light.diffuse);
- variable[0] = '\0';
- strcat_s(variable, sizeof(variable), name);
- strcat_s(variable, sizeof(variable), ".specular");  
- SetShaderFloat3(shader, variable, light.specular);
-
-//setting position
- variable[0] = '\0';
- strcat_s(variable, sizeof(variable), name);
- strcat_s(variable, sizeof(variable), ".position");
- SetShaderFloat3(shader, variable, light.position);
-
-//setting point light atributes
- variable[0] = '\0';
- strcat_s(variable, sizeof(variable), name);
- strcat_s(variable, sizeof(variable), ".constant");
- SetShaderFloat(shader, variable, light.constant);
- variable[0] = '\0';
- strcat_s(variable, sizeof(variable), name);
- strcat_s(variable, sizeof(variable), ".linear");
- SetShaderFloat(shader, variable, light.linear);
- variable[0] = '\0';
- strcat_s(variable, sizeof(variable), name);
- strcat_s(variable, sizeof(variable), ".quadratic");
- SetShaderFloat(shader, variable, light.quadratic);
-}
-
-void SetSpotLightStruct(shaderStruct* shader, const char* name, SpotLight light)
-{
- //setting main light components
- char variable[30];
- strcat_s(variable, sizeof(variable), name);
- strcat_s(variable, sizeof(variable), ".ambient");  
- SetShaderFloat3(shader, variable, light.ambient);
- variable[0] = '\0';
- strcat_s(variable, sizeof(variable), name);
- strcat_s(variable, sizeof(variable), ".diffuse");  
- SetShaderFloat3(shader, variable, light.diffuse);
- variable[0] = '\0';
- strcat_s(variable, sizeof(variable), name);
- strcat_s(variable, sizeof(variable), ".specular");  
- SetShaderFloat3(shader, variable, light.specular);
-
-//setting position
- variable[0] = '\0';
- strcat_s(variable, sizeof(variable), name);
- strcat_s(variable, sizeof(variable), ".position");
- SetShaderFloat3(shader, variable, light.position);
-
-//setting direction
- variable[0] = '\0';
- strcat_s(variable, sizeof(variable), name);
- strcat_s(variable, sizeof(variable), ".direction");
- SetShaderFloat3(shader, variable, light.direction);
-
-//setting spot light atributes
- variable[0] = '\0';
- strcat_s(variable, sizeof(variable), name);
- strcat_s(variable, sizeof(variable), ".cutOff");
- SetShaderFloat(shader, variable, light.cutOff);
- variable[0] = '\0';
- strcat_s(variable, sizeof(variable), name);
- strcat_s(variable, sizeof(variable), ".outerCutOff");
- SetShaderFloat(shader, variable, light.outerCutOff);
-}

@@ -24,3 +24,11 @@ char *ReadFromFile(const char* filename)
   fclose(file);
   return string;
 }
+
+void WriteToFile(const char* filename, const char* string)
+{
+  FILE *file;
+  fopen_s(&file, filename, "w");
+  fprintf(file, "%s", string);
+  fclose(file);
+}

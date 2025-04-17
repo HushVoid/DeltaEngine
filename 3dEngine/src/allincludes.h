@@ -18,6 +18,7 @@
 #include "include/assimp/cimport.h"
 #include "include/assimp/scene.h"
 #include "dynlist.h"
+#include "nodes/node.h"
 #include "include/generated/dcimgui.h"
 #include "include/generated/backends/dcimgui_impl_sdl2.h"
 #include "include/generated/backends/dcimgui_impl_opengl3.h"

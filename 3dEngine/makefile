@@ -3,7 +3,16 @@ LIB = -lstdc++ -L src\lib -lmingw32 -lSDL2main -lSDL2 -lopengl32 -lglu32 -lglew3
 INCDIRS = -Isrc\include -Isrc\include\imgui -Isrc\include\imgui\backends -Isrc\include\generated -Isrc\include\generated\backends
 
 # Список исходных файлов
-SOURCES = src/main.c src/shader.c src/fileread.c src/camera.c  src/dynlist.c src/mesh.c src/model.c 
+SOURCES = src/main.c src/shader.c src/filehandle.c   src/dynlist.c src/mesh.c src/model.c
+SOURCES += src/nodes/spatial_node.c
+SOURCES += src/nodes/light_node.c
+SOURCES += src/nodes/model_node.c
+SOURCES += src/nodes/player_node.c
+SOURCES += src/nodes/camera_node.c
+SOURCES += src/nodes/components.c
+SOURCES += src/nodes/node.c
+
+
 
 # Пути и объектные файлы
 OBJ_DIR = obj
@@ -53,6 +62,10 @@ $(JSON): $(CJSON_OBJS)
 
 # Общее правило для компиляции .c файлов
 $(OBJ_DIR)/%.o: src/%.c
+	@if not exist "$(@D)" mkdir "$(@D)"
+	$(CC) $(CFLAGS) -c $< -o $@
+	
+$(OBJ_DIR)/%.o: src/nodes/%.c
 	@if not exist "$(@D)" mkdir "$(@D)"
 	$(CC) $(CFLAGS) -c $< -o $@
 

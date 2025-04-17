@@ -1,8 +1,10 @@
 #include "node.h"
+#include "../include/cJSON/cJSON.h"
 #include "spatial_node.h"
 #include "model_node.h"
 #include "camera_node.h"
 #include "light_node.h"
+#include "player_node.h"
 #include <string.h>
 
 
@@ -100,12 +102,12 @@ unsigned int NodeFindChildIndex(Node* node, const char* name, bool recursive)
   if(!node)
   {
     printf("NodeFindChildIndex: node passed to func is invalid\n");
-    return NULL;
+    return -1;
   }
   if(node->children->size == 0)
   {
     printf("NodeFindChildIndex: node has not any children\n");
-    return NULL;
+    return -1;
   }
   for(int i = 0; i < node->children->size; i++)
   {
@@ -124,7 +126,7 @@ unsigned int NodeFindChildIndex(Node* node, const char* name, bool recursive)
     }
   }
   printf("NodeFindChildIndex: Child with name %s is not found\n", name);
-  return NULL;
+  return -1;
 }
 
 bool NodeCanHaveChilder(Node* node)
@@ -195,4 +197,157 @@ void NodeAddChild(Node* parent, Node* child)
     child->parent = parent;
     dynlistPush(parent->children, &child); 
 }
+//Export import 
 
+const char* NodeT2Str(NodeType type)
+{
+  switch (type)
+  {
+    case NODE_BASE:
+    return "base";
+    case NODE_MODEL:
+    return "model";
+    case NODE_CAMERA:
+    return "camera";
+    case NODE_SPATIAL:
+    return "spatial";
+    case NODE_PLAYER:
+    return "player";
+    case NODE_LIGHTD:
+    return "lightd";
+    case NODE_LIGHTP:
+    return "lightp";
+    case NODE_LIGHTS:
+    return "lights";
+  }
+}
+NodeType Str2NodeT(const char* type)
+{
+ if(strcmp(type, "base") == 0)
+    return NODE_BASE;
+ if(strcmp(type, "model") == 0)
+    return NODE_MODEL;
+ if(strcmp(type, "camera") == 0)
+    return NODE_CAMERA;
+ if(strcmp(type, "spatial") == 0)
+    return NODE_SPATIAL;
+ if(strcmp(type, "player") == 0)
+    return NODE_PLAYER;
+ if(strcmp(type, "lightd") == 0)
+    return NODE_LIGHTD;
+ if(strcmp(type, "lightp") == 0)
+    return NODE_LIGHTP;
+ if(strcmp(type, "lights") == 0)
+    return NODE_LIGHTS;
+  printf("No such type");
+  return NODE_BASE;
+}
+//TODO Change all the stuff in switch case to each node co-resopnding function for each node
+char* NodeToJSON(const Node* node)
+{
+  if(!node)
+  {
+    printf("NodeToJSON: node passed is invalid\n");
+    return NULL;
+  }
+  cJSON* root = cJSON_CreateObject();
+   
+  cJSON_AddStringToObject(root, "type", NodeT2Str(node->type));
+  cJSON_AddStringToObject(root, "name", node->name);
+  cJSON_AddStringToObject(root, "name", node->name);
+  cJSON_AddBoolToObject(root, "enabled", node->enabled);
+      switch(node->type)
+      {
+        case NODE_BASE:
+        break;
+        case NODE_SPATIAL:
+        const SpatialNode* spatial = (const SpatialNode*)node;
+        SpatialNodeToJSON(spatial, root);
+        break;
+        case NODE_MODEL:
+        const ModelNode* model = (const ModelNode*)node;
+        ModelNodeToJSON(model, root);
+        break;
+        case NODE_CAMERA:
+        const CameraNode* cam = (const CameraNode*)node;
+        CameraNodeToJSON(cam, root);
+        break;
+        case NODE_LIGHTD:
+        const DirectionalLightNode* dlight = (const DirectionalLightNode*)node;
+        DLightToJSON(dlight, root);
+        break;
+        case NODE_LIGHTP:
+        const PointLightNode* plight = (const PointLightNode*)node;
+        PLightToJSON(plight, root);
+        break;
+        case NODE_LIGHTS:
+        const SpotLightNode* splight = (const SpotLightNode*)node;
+        SLightToJSON(splight, root); 
+        break;
+        case NODE_PLAYER:
+        const PlayerNode* player = (const PlayerNode*)node;
+        break;
+      }
+  if(node->children && node->children->size > 0)
+  {
+   cJSON* children = cJSON_CreateArray();
+   for (int i = 0; i < node->children->size; i++) 
+    {
+      Node* child = *(Node**)dynlistAt(node->children, i);
+      char* childJsonStr = NodeToJSON(child);
+      cJSON* childJson = cJSON_Parse(childJsonStr);
+      cJSON_AddItemToArray(children, childJson);
+      free(childJsonStr);
+    }
+   cJSON_AddItemToObject(root, "children", children);
+  }
+  char* jsonStr = cJSON_Print(root);
+  return jsonStr;
+}
+
+
+Node* NodeFromJSON(const cJSON* json)
+{
+  const char* typeStr = cJSON_GetStringValue(cJSON_GetObjectItem(json,"type"));
+  NodeType type = Str2NodeT(typeStr);
+  Node* node = NULL;
+  
+  switch(type)
+  {
+    case NODE_BASE:
+    char* name = cJSON_GetStringValue(cJSON_GetObjectItem(json,"name"));
+    node = NodeCreate(name);
+    break;
+    case NODE_SPATIAL:
+    node = (Node*)SpatialNodeFromJSON(json);
+    break;
+    case NODE_CAMERA:
+    node = (Node*)CameraNodeFromJSON(json);
+    break;
+    case NODE_MODEL:
+    node = (Node*)ModelNodeFromJSON(json);
+    break;
+    case NODE_LIGHTD:
+    node = (Node*)DLightFromJSON(json);
+    break;
+    case NODE_LIGHTP:
+    node = (Node*)PLightFromJSON(json);
+    break;
+    case NODE_LIGHTS:
+    node = (Node*)SLightFromJSON(json);
+    break;
+    case NODE_PLAYER:
+    node = (Node*)PlayerNodeFromJSON(json);
+  }
+  cJSON* children = cJSON_GetObjectItem(json, "children");
+  if(children)
+  {
+    cJSON* childJson;
+    cJSON_ArrayForEach(childJson, children)
+    {
+      Node* child = NodeFromJSON(childJson);
+      NodeAddChild(node, child);
+    }
+  }
+  return node;
+}
