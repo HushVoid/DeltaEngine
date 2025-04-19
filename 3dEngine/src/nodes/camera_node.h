@@ -15,10 +15,10 @@ typedef struct
   float aspect;
 } CameraNode;
 
-CameraNode* CameraNodeCreate(const char* name, vec3 worldUpVec, float nearPlane, float farPlane, float aspect);
+CameraNode* CameraNodeCreate(const char* name,float fov, vec3 worldUpVec, float nearPlane, float farPlane, float aspect);
 
-void UpdateCameraVectors(CameraNode *camera);
-void GetViewMatrixFromCamera(CameraNode camera, mat4 view);
+void CalcViewMatFromCamera(CameraNode* camera);
+void CalcProjectionMatFromCamera(CameraNode* camera);
 
 void UpdateCameraNode(CameraNode* update, float delta);
 

@@ -1,7 +1,66 @@
 #include "light_node.h"
+#include "components.h"
+#include "node.h"
 #include "spatial_node.h"
 
+void PointLightCalc(PointLightNode* light)
+{
+  light->light.constant = 1;
+  if(light->radius <= 0)
+  {
+    light->light.linear = 0;
+    light->light.quadratic = 0;
+    return;
+  }
+  light->light.linear = 2.0 / light->radius;
+  light->light.quadratic = 1.0 / (light->radius * light->radius);
+}
 
+DirectionalLightNode* DLightCreate(const char* name, float intencity, vec3 direction)
+{
+  DirectionalLightNode* node = calloc(1, sizeof(DirectionalLightNode));
+  strcpy_s(node->base.base.name, sizeof(node->base.base.name), name);
+  node->base.base.children = dynlistInit(sizeof(Node*), 4);
+  node->base.base.type = NODE_LIGHTD;
+  node->base.visible = true;
+  TransformDefaultInit(&node->base.transform);
+  glm_mat4_identity(node->base.globalTransformMatrix);
+  node->intencity = intencity;
+  glm_vec3_copy(direction,node->light.direction);
+  glm_vec3_fill(node->light.color, 1);
+  return node;  
+}
+PointLightNode* PLightCreate(const char* name, float intencity, float radius)
+{
+  PointLightNode* node = calloc(1, sizeof(PointLightNode));
+  strcpy_s(node->base.base.name, sizeof(node->base.base.name), name);
+  node->base.base.children = dynlistInit(sizeof(Node*), 4);
+  node->base.base.type = NODE_LIGHTP;
+  node->base.visible = true;
+  TransformDefaultInit(&node->base.transform);
+  glm_mat4_identity(node->base.globalTransformMatrix);
+  node->intencity = intencity;
+  node->radius = radius;
+  PointLightCalc(node);
+  glm_vec3_fill(node->light.color, 1);
+  return node;
+}
+SpotLightNode* SLightCreate(const char* name, float intencity, vec3 direction)
+{
+  SpotLightNode* node = calloc(1, sizeof(SpotLightNode));
+  strcpy_s(node->base.base.name, sizeof(node->base.base.name), name);
+  node->base.base.children = dynlistInit(sizeof(Node*), 4);
+  node->base.base.type = NODE_LIGHTS;
+  node->base.visible = true;
+  TransformDefaultInit(&node->base.transform);
+  glm_mat4_identity(node->base.globalTransformMatrix);
+  node->light.cutOff = DEG2RAD(25);   
+  node->light.outerCutOff = DEG2RAD(35);   
+  node->intencity = intencity;
+  glm_vec3_copy(direction,node->light.direction);
+  glm_vec3_fill(node->light.color, 1);
+  return node;
+}
 void DLightToJSON(const DirectionalLightNode* light, cJSON* root)
 {
   SpatialNodeToJSON((const SpatialNode*)light, root);
@@ -26,7 +85,7 @@ void PLightToJSON(const PointLightNode* light, cJSON* root)
   }
   cJSON_AddItemToObject(root, "color", colorp);
   cJSON_AddNumberToObject(root, "intencity", light->intencity);
-  cJSON_AddNumberToObject(root, "radius", light->distance);
+  cJSON_AddNumberToObject(root, "radius", light->radius);
 }
 void SLightToJSON(const SpotLightNode* light, cJSON* root)
 {
@@ -77,8 +136,8 @@ PointLightNode* PLightFromJSON(const cJSON* json)
 {
   char* name = cJSON_GetStringValue(cJSON_GetObjectItem(json,"name"));
   float intencity = (float)cJSON_GetNumberValue(cJSON_GetObjectItem(json,"intencity")); 
-  float distance = (float)cJSON_GetNumberValue(cJSON_GetObjectItem(json, "radius"));
-  PointLightNode* node = PLightCreate(name, intencity, distance);
+  float radius = (float)cJSON_GetNumberValue(cJSON_GetObjectItem(json, "radius"));
+  PointLightNode* node = PLightCreate(name, intencity, radius);
   cJSON* transform = cJSON_GetObjectItem(json, "transform");
   if(transform)
   {
@@ -129,3 +188,30 @@ SpotLightNode* SLightFromJSON(const cJSON* json)
   return node;
 }
 
+void DLightFree(DirectionalLightNode* light)
+{
+  if(!light)
+  {
+    printf("DLightFree: light isn't valid\n");
+    return;
+  }
+  free(light);
+}
+void PLightFree(PointLightNode* light)
+{
+  if(!light)
+  {
+    printf("PLightFree: light isn't valid\n");
+    return;
+  }
+  free(light);
+}
+void SLightFree(SpotLightNode* light)
+{
+  if(!light)
+  {
+    printf("PLightFree: light isn't valid\n");
+    return;
+  }
+  free(light);
+}

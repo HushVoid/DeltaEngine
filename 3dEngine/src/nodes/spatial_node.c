@@ -1,4 +1,36 @@
 #include "spatial_node.h"
+#include "components.h"
+#include "node.h"
+#include "../macro.h"
+#include <string.h>
+
+SpatialNode*   SpatialNodeCreate(const char* name)
+{
+  SpatialNode* node = calloc(1, sizeof(SpatialNode));
+  strcpy_s(node->base.name, sizeof(node->base.name), name);
+  node->base.children = dynlistInit(sizeof(Node*), 4);
+  node->base.type = NODE_SPATIAL;
+  node->visible = true;
+  TransformDefaultInit(&node->transform);
+  glm_mat4_identity(node->globalTransformMatrix);
+  return node;  
+}
+
+void SpatialNodeUpdateGlobalTransform(SpatialNode* node)
+{
+  glm_mat4_identity(node->globalTransformMatrix);
+ 
+  mat4 rotMat;
+  vec3 eulerangles = {
+    DEG2RAD(node->transform.rotation[0]),
+    DEG2RAD(node->transform.rotation[1]),
+    DEG2RAD(node->transform.rotation[2])
+  };
+  glm_euler(eulerangles, rotMat);
+  glm_scale(node->globalTransformMatrix, node->transform.scale);
+  glm_mat4_mul(node->globalTransformMatrix, rotMat, node->globalTransformMatrix);
+  glm_translate(node->globalTransformMatrix, node->transform.position);
+}
 
 void SpatialNodeToJSON(const SpatialNode* node, cJSON* root)
 {
@@ -32,4 +64,13 @@ SpatialNode* SpatialNodeFromJSON(const cJSON* json)
   SpatialNodeUpdateGlobalTransform(node); 
   return node;
    
+}
+void   SpatialNodeFree(SpatialNode* node)
+{
+  if(!node)
+  {
+    printf("SpatialNodeFree: node isn't valid\n");
+    return;
+  }
+  free(node);
 }

@@ -61,6 +61,7 @@ void NodeDestroy(Node* node)
       return;
     //ADD PLAYER NODE DELITION HANDLING
     case NODE_PLAYER:
+      PlayerNodeFree((PlayerNode*) node);
       return;
   }
 }
@@ -253,7 +254,6 @@ char* NodeToJSON(const Node* node)
   cJSON* root = cJSON_CreateObject();
    
   cJSON_AddStringToObject(root, "type", NodeT2Str(node->type));
-  cJSON_AddStringToObject(root, "name", node->name);
   cJSON_AddStringToObject(root, "name", node->name);
   cJSON_AddBoolToObject(root, "enabled", node->enabled);
       switch(node->type)

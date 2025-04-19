@@ -1,0 +1,31 @@
+{
+	"type":	"base",
+	"name":	"dobro node",
+	"enabled":	true,
+	"children":	[{
+			"type":	"spatial",
+			"name":	"spatial",
+			"enabled":	false,
+			"transform":	{
+				"position":	[0, 0, 0],
+				"rotation":	[0, 0, 0],
+				"scale":	[1, 1, 1]
+			},
+			"visible":	true,
+			"children":	[{
+					"type":	"camera",
+					"name":	"cam1",
+					"enabled":	false,
+					"transform":	{
+						"position":	[0, 0, 0],
+						"rotation":	[0, 0, 0],
+						"scale":	[1, 1, 1]
+					},
+					"visible":	true,
+					"fov":	70,
+					"nearplane":	0.125,
+					"farplane":	100,
+					"aspect":	1.7777777910232544
+				}]
+		}]
+}

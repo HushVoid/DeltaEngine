@@ -1,6 +1,24 @@
 #include "components.h"
 
+void TransformDefaultInit(Transform *t)
+{
+  glm_vec3_fill(t->position, 0);
+  glm_vec3_fill(t->rotation, 0);
+  glm_vec3_fill(t->scale, 1);
+}
 
+void TransformGetForward(const Transform* t, vec3 dest)
+{
+  float pitch = DEG2RAD(t->rotation[0]);
+  float yaw = DEG2RAD(t->rotation[1]);
+  vec3 forward = {
+    -sinf(yaw) * cosf(pitch),
+    sinf(pitch),
+    -cosf(yaw) * cosf(pitch)
+  };
+  glm_vec3_norm(forward);
+  glm_vec3_copy(forward, dest);
+}
 cJSON* TransformToJSON(const Transform* t)
 {
   cJSON* transform = cJSON_CreateObject();

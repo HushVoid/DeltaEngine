@@ -18,7 +18,7 @@ typedef struct
   SpatialNode base;
   PointLight light;
   float intencity;
-  float distance;
+  float radius;
 } PointLightNode;
 
 typedef struct
@@ -31,7 +31,7 @@ typedef struct
 
 
 DirectionalLightNode* DLightCreate(const char* name, float intencity, vec3 direction);
-PointLightNode* PLightCreate(const char* name, float intencity, float distance);
+PointLightNode* PLightCreate(const char* name, float intencity, float radius);
 SpotLightNode* SLightCreate(const char* name, float intencity, vec3 direction);
 
 void DLightFree(DirectionalLightNode* light);
@@ -45,4 +45,7 @@ void SLightToJSON(const SpotLightNode* light, cJSON* root);
 DirectionalLightNode* DLightFromJSON(const cJSON* json);
 PointLightNode* PLightFromJSON(const cJSON* json);
 SpotLightNode* SLightFromJSON(const cJSON* json);
+
+//INTERNAL USE ONLY
+void PointLightCalc(PointLightNode* light);
 #endif // !LIGHT_NODE_H

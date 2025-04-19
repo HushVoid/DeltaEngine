@@ -1,7 +1,8 @@
 #include "allincludes.h"
+#include <minwindef.h>
 
-#define WIDTH 1600
-#define HEIGHT 900
+#define WIDTH 1600.0
+#define HEIGHT 900.0
 
 static struct
 {
@@ -25,6 +26,7 @@ bool isKeyDown(SDL_Scancode scanCode)
   return state.keyboardStates[scanCode];
 }
 
+void Update(float deltaTime);
 GLenum errorCheck (int checkNumber)
 {
     GLenum code;
@@ -45,12 +47,18 @@ dynlist_t * models;
 static shaderStruct modelshader;
 static vec3 modelPos;
 static vec3 modelPos1;
-void Render(shaderStruct*lightShader,ImGuiIO* io, GLuint lightVAO, GLuint* textures, float time)
+void Render(ImGuiIO* io, float time)
 { 
   cImGui_ImplOpenGL3_NewFrame();
   cImGui_ImplSDL2_NewFrame();
   ImGui_NewFrame();
+  {
+    ImGui_Begin("salem", NULL, ImGuiWindowFlags_None);
+    ImGui_Text("eto text");
+    ImGui_End();
+  }
   ImGui_Render();
+
   glViewport(0, 0,WIDTH , HEIGHT);
   glClearColor(clearColor.x * clearColor.w, clearColor.y * clearColor.w, clearColor.z * clearColor.w, clearColor.w);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -111,8 +119,13 @@ int main(int argc, char** argv)
 
   Node* myNode = NodeCreate("dobro node");
   printf("node created named: %s\n", myNode->name);
-
-
+  SpatialNode* spNode = SpatialNodeCreate("spatial");
+  CameraNode* camera = CameraNodeCreate("cam1", 70, (vec3){0, 1, 0}, 0.125f, 100.0f, WIDTH/HEIGHT);
+  NodeAddChild(myNode, (Node*)spNode);
+  NodeAddChild((Node*)spNode, (Node*)camera);
+  char* jsonNode = NodeToJSON(myNode);
+  WriteToFile("nodes.json", jsonNode);
+  free(jsonNode);
 
   material.shininess = 2.0f;
 
@@ -204,27 +217,24 @@ float vertices[] = {//3 vertex coords //2 texture coords //3 normals
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
   glGenerateMipmap(GL_TEXTURE_2D);
 
-  CreateShader(&objectshader, "e:\\projects\\deltaengine\\3dengine\\shaders\\defaultvertex.vs","e:\\projects\\deltaengine\\3dengine\\shaders\\defaultfragment.fs");
-  CreateShader(&lightShader, "e:\\projects\\deltaengine\\3dengine\\shaders\\lightCubeVertex.vs","e:\\projects\\deltaengine\\3dengine\\shaders\\lightFragmentShader.fs");
+
+
   CreateShader(&modelshader, "E:\\projects\\deltaengine\\3dengine\\shaders\\modelvertex.vs", "E:\\projects\\deltaengine\\3dengine\\shaders\\modelfragment.fs");
   
   ModelInit(&backpack, "E:\\projects\\deltaengine\\3dengine\\resources\\models\\backpack\\backpack.obj");
-  printf("cubik\n");
   ModelInit(&cube, "E:\\projects\\deltaengine\\3dengine\\resources\\models\\Cube\\cube.obj");
   dynlistPush(models, &backpack);
   dynlistPush(models, &cube);
-
+  
   stbi_image_free(data);
-  mat4 view;
-  mat4 projection;
   UseShader(&objectshader);
   SetShaderInt(&objectshader, "material.diffuse", 0);
   SetShaderInt(&objectshader, "material.specular", 1);
-  SetShaderMatrix4f(&objectshader, "projection", projection);
+  SetShaderMatrix4f(&objectshader, "projection", camera->projection);
   UseShader(&lightShader);
-  SetShaderMatrix4f(&lightShader, "projection", projection);
+  SetShaderMatrix4f(&lightShader, "projection", camera->projection);
   UseShader(&modelshader);
-  SetShaderMatrix4f(&modelshader, "projection", projection);
+  SetShaderMatrix4f(&modelshader, "projection", camera->projection);
 
 
   float lastTickTime = 0;
@@ -233,16 +243,14 @@ float vertices[] = {//3 vertex coords //2 texture coords //3 normals
   {
     int i = 0;
     float time = SDL_GetTicks();
+    CalcViewMatFromCamera(camera);
     state.deltaTime = (time - lastTickTime) / 1000.0f;
-    SetShaderFloat(&objectshader,"time", time);
-    SetShaderMatrix4f(&objectshader, "view", view);
-    UseShader(&lightShader);
-    SetShaderFloat(&lightShader,"time", time);
-    SetShaderMatrix4f(&lightShader,"view", view);
+    Update(state.deltaTime);
+    SetShaderMatrix4f(&lightShader,"view", camera->view);
     UseShader(&modelshader);
     SetShaderFloat(&modelshader,"time", time);
-    SetShaderMatrix4f(&modelshader,"view", view);
-    Render(&lightShader,ioptr,lightVAO,textures,time);
+    SetShaderMatrix4f(&modelshader,"view", camera->view);
+    Render(ioptr,time);
    // SDL_Delay(1);
     lastTickTime = time;
   }
@@ -251,6 +259,7 @@ float vertices[] = {//3 vertex coords //2 texture coords //3 normals
     DeleteModel(dynlistAt(models,i));
   }
   dynlistFree(models);
+  NodeDestroy(myNode);
   cImGui_ImplSDL2_Shutdown();
   cImGui_ImplOpenGL3_Shutdown();
   ImGui_DestroyContext(NULL);
@@ -261,7 +270,7 @@ float vertices[] = {//3 vertex coords //2 texture coords //3 normals
 
 
 
-void Update(float deltaTime,shaderStruct *shader)
+void Update(float deltaTime)
 {
     while(SDL_PollEvent(&state.event) != 0)
     {
@@ -293,6 +302,5 @@ void Update(float deltaTime,shaderStruct *shader)
    }
   
   SDL_SetRelativeMouseMode(state.isMouseLocked);
-  UseShader(shader);
 }
 
