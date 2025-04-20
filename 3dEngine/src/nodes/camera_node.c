@@ -1,4 +1,5 @@
 #include "camera_node.h"
+#include "components.h"
 #include "node.h"
 #include "spatial_node.h"
 
@@ -12,6 +13,8 @@ CameraNode* CameraNodeCreate(const char* name, float fov,  vec3 worldUpVec, floa
   TransformDefaultInit(&node->base.transform);
   glm_mat4_identity(node->base.globalTransformMatrix);
   glm_vec3_copy(worldUpVec, node->updir);
+  node->speed = CAM_DEFAULT_SPEED;
+  node->sens = CAM_DEFAULT_SENS;
   node->fov = fov;
   node->nearPlane = nearPlane;
   node->farPlane = farPlane;
@@ -32,7 +35,7 @@ void CalcViewMatFromCamera(CameraNode* camera)
 }
 void CalcProjectionMatFromCamera(CameraNode* camera)
 {
- glm_perspective(camera->fov, camera->aspect, camera->nearPlane, camera->farPlane, camera->projection); 
+ glm_perspective(DEG2RAD(camera->fov), camera->aspect, camera->nearPlane, camera->farPlane, camera->projection); 
 }
 void CameraNodeToJSON(const CameraNode* node, cJSON* root)
 {
@@ -41,6 +44,41 @@ void CameraNodeToJSON(const CameraNode* node, cJSON* root)
   cJSON_AddNumberToObject(root, "nearplane", node->nearPlane); 
   cJSON_AddNumberToObject(root, "farplane", node->farPlane); 
   cJSON_AddNumberToObject(root, "aspect", node->aspect); 
+}
+
+//Hande EDIT mode Camera movement;
+void CameraNodeHandleWASD(CameraNode* camera, float delta, CameraMovementDir dir)
+{
+  float dSpeed = camera->speed * delta;
+  vec3 fwDir;
+  TransformGetForward(&camera->base.transform, fwDir);
+  glm_vec3_scale(fwDir, dSpeed, fwDir);
+  vec3 rightDir;
+  TransformGetRightVec(&camera->base.transform, camera->updir, rightDir);
+  glm_vec3_scale(rightDir, dSpeed, rightDir);
+  if(dir == CAMERA_EDIT_FORWARD)
+    glm_vec3_add(camera->base.transform.position, fwDir, camera->base.transform.position);
+  if(dir == CAMERA_EDIT_BACKWARD)
+    glm_vec3_sub(camera->base.transform.position, fwDir, camera->base.transform.position);
+  if(dir == CAMERA_EDIT_RIGHT)
+    glm_vec3_add(camera->base.transform.position, rightDir, camera->base.transform.position);
+  if(dir == CAMERA_EDIT_LEFT)
+    glm_vec3_sub(camera->base.transform.position, rightDir, camera->base.transform.position);
+}
+//Handle EDIT mode Camera movement; 
+void CameraHandleMouse(CameraNode* camera, float dX, float dY, bool constrainPitch)
+{
+  float modDX = dX * camera->sens;  
+  float modDY = dY * camera->sens;  
+  
+
+  camera->base.transform.rotation[0] -= modDY;
+  camera->base.transform.rotation[1] -= modDX;
+
+  if(constrainPitch)
+  {
+    camera->base.transform.rotation[0] = glm_clamp(camera->base.transform.rotation[0], -89.0f, 89.0f);
+  }
 }
 CameraNode* CameraNodeFromJSON(const cJSON* json)
 {

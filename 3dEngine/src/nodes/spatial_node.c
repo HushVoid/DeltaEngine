@@ -30,8 +30,19 @@ void SpatialNodeUpdateGlobalTransform(SpatialNode* node)
   glm_scale(node->globalTransformMatrix, node->transform.scale);
   glm_mat4_mul(node->globalTransformMatrix, rotMat, node->globalTransformMatrix);
   glm_translate(node->globalTransformMatrix, node->transform.position);
+  if(node->base.parent && node->base.parent->type == NODE_SPATIAL)
+  {
+    SpatialNode* parent = (SpatialNode*)node->base.parent;
+    mat4 parentMatr;
+    glm_mat4_copy(parent->globalTransformMatrix, parentMatr);
+    glm_mat4_mul(parentMatr, node->globalTransformMatrix, node->globalTransformMatrix);
+  }
 }
 
+void  SpatialNodeSetPos(SpatialNode* node, vec3 position)
+{
+  glm_vec3_copy(position, node->transform.position);
+}
 void SpatialNodeToJSON(const SpatialNode* node, cJSON* root)
 {
   cJSON* transform = TransformToJSON(&node->transform);

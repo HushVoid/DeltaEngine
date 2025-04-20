@@ -16,8 +16,17 @@ void TransformGetForward(const Transform* t, vec3 dest)
     sinf(pitch),
     -cosf(yaw) * cosf(pitch)
   };
-  glm_vec3_norm(forward);
+  glm_vec3_normalize(forward);
   glm_vec3_copy(forward, dest);
+}
+void TransformGetRightVec(const Transform *t,vec3 worldUp, vec3 dest)
+{
+  vec3 right;
+  vec3 forward;
+  TransformGetForward(t, forward);
+  glm_vec3_cross(forward, worldUp, right);
+  glm_vec3_normalize(right);
+  glm_vec3_copy(right, dest);
 }
 cJSON* TransformToJSON(const Transform* t)
 {

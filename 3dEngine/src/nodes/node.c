@@ -89,7 +89,7 @@ Node* NodeFindChild(Node* node, const char* name, bool recursive)
     for(int i = 0; i < node->children->size; i++)
     {
       Node* child = *(Node**)dynlistAt(node->children, i);
-      Node* childFound = NodeFindChild(child, child->name, true);
+      Node* childFound = NodeFindChild(child, name, true);
       if(childFound)
        return childFound;
     }

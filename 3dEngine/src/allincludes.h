@@ -20,6 +20,7 @@
 #include "dynlist.h"
 #include "filehandle.h"
 #include "nodes/node.h"
+#include "scene.h"
 #include "nodes/spatial_node.h"
 #include "nodes/model_node.h"
 #include "nodes/camera_node.h"

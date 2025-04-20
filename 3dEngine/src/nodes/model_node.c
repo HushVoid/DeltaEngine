@@ -24,7 +24,6 @@ ModelNode* ModelNodeCreate(ShapeType type, const char* name, const char* modelPa
   {
     char* lastSlash = strrchr(execpath, '\\');
     if(lastSlash != NULL) *lastSlash = '\0';        
-    printf("Executable dir: %s\n",execpath);
   }
   char defaultModelPath[256];
   strcpy_s(defaultModelPath, 256, execpath);
@@ -53,6 +52,20 @@ ModelNode* ModelNodeCreate(ShapeType type, const char* name, const char* modelPa
   return node;
  }
 
+void ModelNodeRender(ModelNode* node, shaderStruct* shader)
+{ 
+  SpatialNodeUpdateGlobalTransform((SpatialNode*)node);
+  UseShader(shader);
+  mat3 NormalMatrix;
+  glm_mat4_pick3(node->base.globalTransformMatrix, NormalMatrix);
+  glm_mat3_inv(NormalMatrix, NormalMatrix);
+  glm_mat3_transpose(NormalMatrix);
+  SetShaderMatrix4f(shader, "model", node->base.globalTransformMatrix);
+  SetShaderMatrix3f(shader, "normalMatrix", NormalMatrix);
+  
+
+  DrawModel(&node->model, shader);
+}
 
 const char* ShapeTypeToStr(ShapeType type)
 {

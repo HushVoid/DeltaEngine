@@ -26,7 +26,8 @@ bool isKeyDown(SDL_Scancode scanCode)
   return state.keyboardStates[scanCode];
 }
 
-void Update(float deltaTime);
+void Update(Scene* scene, float deltaTime);
+unsigned int LoadCubemap(dynlist_t* faces);
 GLenum errorCheck (int checkNumber)
 {
     GLenum code;
@@ -39,16 +40,29 @@ GLenum errorCheck (int checkNumber)
     return code;
 }
 
+void mat3_to_mat4(mat3 src, mat4 dest)
+{
+  for(int i = 0; i < 3;  i++)
+  {
+    for(int j = 0; j < 3; j++)
+    {
+      dest[i][j] = src[i][j];
+    }
+  }
+  for(int i = 0; i < 4; i++)
+  {
+    dest[3][i] = 0;
+  }
+}
+
 static ImVec4 clearColor = {0.1f, 0.1f, 0.1f, 1.0f};
 //static ImVec4 meshColor = { 1.0f, 1.0f, 1.0f, 1.0f};
 static float f = 0.0f;
 static PointLight pointLights[4];
-dynlist_t * models;
 static shaderStruct modelshader;
-static vec3 modelPos;
-static vec3 modelPos1;
-void Render(ImGuiIO* io, float time)
-{ 
+static shaderStruct skyboxShader;
+void Render(Scene* scene, ImGuiIO* io, float time, unsigned int skyboxVAO, unsigned int cubemap)
+{
   cImGui_ImplOpenGL3_NewFrame();
   cImGui_ImplSDL2_NewFrame();
   ImGui_NewFrame();
@@ -58,29 +72,22 @@ void Render(ImGuiIO* io, float time)
     ImGui_End();
   }
   ImGui_Render();
-
   glViewport(0, 0,WIDTH , HEIGHT);
   glClearColor(clearColor.x * clearColor.w, clearColor.y * clearColor.w, clearColor.z * clearColor.w, clearColor.w);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  mat4 modelMat;
-  mat3 normalMatrix;
-  glm_mat4_identity(modelMat);
-  glm_translate(modelMat, modelPos); 
-  glm_mat4_pick3(modelMat, normalMatrix);
-  glm_mat3_inv(normalMatrix, normalMatrix);
-  glm_mat3_transpose(normalMatrix);
-  UseShader(&modelshader);
-  SetShaderMatrix4f(&modelshader, "model", modelMat);
-  SetShaderMatrix3f(&modelshader,"normalMatrix", normalMatrix);
-  DrawModel((Model*)(dynlistAt(models, 0)), &modelshader);
-  glm_translate(modelMat, modelPos1); 
-  glm_mat4_pick3(modelMat, normalMatrix);
-  glm_mat3_inv(normalMatrix, normalMatrix);
-  glm_mat3_transpose(normalMatrix);
-  UseShader(&modelshader);
-  SetShaderMatrix4f(&modelshader, "model", modelMat);
-  SetShaderMatrix3f(&modelshader,"normalMatrix", normalMatrix);
-  DrawModel((Model*)(dynlistAt(models, 1)), &modelshader);
+  SceneRender(scene, &modelshader);
+  glDepthFunc(GL_LEQUAL);
+  UseShader(&skyboxShader);
+  mat3 view3;
+  glm_mat4_pick3(scene->activeCamera->view, view3);
+  mat3_to_mat4(view3,scene->activeCamera->view);
+  SetShaderMatrix4f(&skyboxShader, "view", scene->activeCamera->view);
+  glBindVertexArray(skyboxVAO);
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap);
+  glDrawArrays(GL_TRIANGLES, 0, 36);
+  glBindVertexArray(0);
+  glDepthFunc(GL_LESS); // set depth function back to default 
   cImGui_ImplOpenGL3_RenderDrawData(ImGui_GetDrawData());
   SDL_GL_SwapWindow(state.window);
 }
@@ -89,9 +96,6 @@ void Render(ImGuiIO* io, float time)
 int main(int argc, char** argv)
 {
 
-  models = dynlistInit(sizeof(Model), DEFAULT_INIT_CAPACITY);
-  Model backpack;
-  Model cube; 
   //SDL
   SDL_Init(SDL_INIT_EVERYTHING);
   state.window = SDL_CreateWindow("Delta", SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,WIDTH,HEIGHT,SDL_WINDOW_OPENGL);
@@ -116,150 +120,116 @@ int main(int argc, char** argv)
 //stbi
   stbi_set_flip_vertically_on_load(true); 
 
-
-  Node* myNode = NodeCreate("dobro node");
-  printf("node created named: %s\n", myNode->name);
-  SpatialNode* spNode = SpatialNodeCreate("spatial");
-  CameraNode* camera = CameraNodeCreate("cam1", 70, (vec3){0, 1, 0}, 0.125f, 100.0f, WIDTH/HEIGHT);
-  NodeAddChild(myNode, (Node*)spNode);
-  NodeAddChild((Node*)spNode, (Node*)camera);
-  char* jsonNode = NodeToJSON(myNode);
-  WriteToFile("nodes.json", jsonNode);
-  free(jsonNode);
-
-  material.shininess = 2.0f;
-
-  shaderStruct objectshader;
-  shaderStruct lightShader;
+  Scene* scene = SceneCreate();
+  SceneDemoSetup(scene); 
 unsigned int VBO; 
 
-float vertices[] = {//3 vertex coords //2 texture coords //3 normals
-    -0.5f, -0.5f, -0.5f,  0.0f, 0.0f, 0.0f,  0.0f, -1.0f,
-     0.5f, -0.5f, -0.5f,  1.0f, 0.0f, 0.0f,  0.0f, -1.0f,
-     0.5f,  0.5f, -0.5f,  1.0f, 1.0f, 0.0f,  0.0f, -1.0f,
-     0.5f,  0.5f, -0.5f,  1.0f, 1.0f, 0.0f,  0.0f, -1.0f,
-    -0.5f,  0.5f, -0.5f,  0.0f, 1.0f, 0.0f,  0.0f, -1.0f,
-    -0.5f, -0.5f, -0.5f,  0.0f, 0.0f, 0.0f,  0.0f, -1.0f,
+float skyboxVertices[] = {
+    // positions          
+    -1.0f,  1.0f, -1.0f,
+    -1.0f, -1.0f, -1.0f,
+     1.0f, -1.0f, -1.0f,
+     1.0f, -1.0f, -1.0f,
+     1.0f,  1.0f, -1.0f,
+    -1.0f,  1.0f, -1.0f,
 
-    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,  0.0f,  0.0f, 1.0f,
-     0.5f, -0.5f,  0.5f,  1.0f, 0.0f,  0.0f,  0.0f, 1.0f,
-     0.5f,  0.5f,  0.5f,  1.0f, 1.0f,  0.0f,  0.0f, 1.0f,
-     0.5f,  0.5f,  0.5f,  1.0f, 1.0f,  0.0f,  0.0f, 1.0f,
-    -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,  0.0f,  0.0f, 1.0f,
-    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,  0.0f,  0.0f, 1.0f,
+    -1.0f, -1.0f,  1.0f,
+    -1.0f, -1.0f, -1.0f,
+    -1.0f,  1.0f, -1.0f,
+    -1.0f,  1.0f, -1.0f,
+    -1.0f,  1.0f,  1.0f,
+    -1.0f, -1.0f,  1.0f,
 
-    -0.5f,  0.5f,  0.5f,  1.0f, 0.0f, -1.0f,  0.0f,  0.0f,
-    -0.5f,  0.5f, -0.5f,  1.0f, 1.0f, -1.0f,  0.0f,  0.0f,
-    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f, -1.0f,  0.0f,  0.0f,
-    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f, -1.0f,  0.0f,  0.0f,
-    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f, -1.0f,  0.0f,  0.0f,
-    -0.5f,  0.5f,  0.5f,  1.0f, 0.0f, -1.0f,  0.0f,  0.0f,
+     1.0f, -1.0f, -1.0f,
+     1.0f, -1.0f,  1.0f,
+     1.0f,  1.0f,  1.0f,
+     1.0f,  1.0f,  1.0f,
+     1.0f,  1.0f, -1.0f,
+     1.0f, -1.0f, -1.0f,
 
-     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,  1.0f,  0.0f,  0.0f,
-     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,  1.0f,  0.0f,  0.0f,
-     0.5f, -0.5f, -0.5f,  0.0f, 1.0f,  1.0f,  0.0f,  0.0f,
-     0.5f, -0.5f, -0.5f,  0.0f, 1.0f,  1.0f,  0.0f,  0.0f,
-     0.5f, -0.5f,  0.5f,  0.0f, 0.0f,  1.0f,  0.0f,  0.0f,
-     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,  1.0f,  0.0f,  0.0f,
+    -1.0f, -1.0f,  1.0f,
+    -1.0f,  1.0f,  1.0f,
+     1.0f,  1.0f,  1.0f,
+     1.0f,  1.0f,  1.0f,
+     1.0f, -1.0f,  1.0f,
+    -1.0f, -1.0f,  1.0f,
 
-    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,  0.0f, -1.0f,  0.0f,
-     0.5f, -0.5f, -0.5f,  1.0f, 1.0f,  0.0f, -1.0f,  0.0f,
-     0.5f, -0.5f,  0.5f,  1.0f, 0.0f,  0.0f, -1.0f,  0.0f,
-     0.5f, -0.5f,  0.5f,  1.0f, 0.0f,  0.0f, -1.0f,  0.0f,
-    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,  0.0f, -1.0f,  0.0f,
-    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,  0.0f, -1.0f,  0.0f,
+    -1.0f,  1.0f, -1.0f,
+     1.0f,  1.0f, -1.0f,
+     1.0f,  1.0f,  1.0f,
+     1.0f,  1.0f,  1.0f,
+    -1.0f,  1.0f,  1.0f,
+    -1.0f,  1.0f, -1.0f,
 
-    -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,  0.0f,  1.0f,  0.0f,
-     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,  0.0f,  1.0f,  0.0f,
-     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,  0.0f,  1.0f,  0.0f,
-     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,  0.0f,  1.0f,  0.0f,
-    -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,  0.0f,  1.0f,  0.0f,
-    -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,  0.0f,  1.0f,  0.0f
+    -1.0f, -1.0f, -1.0f,
+    -1.0f, -1.0f,  1.0f,
+     1.0f, -1.0f, -1.0f,
+     1.0f, -1.0f, -1.0f,
+    -1.0f, -1.0f,  1.0f,
+     1.0f, -1.0f,  1.0f
 };
   glGenBuffers(1,&VBO);
 
 
   glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
-  glBufferData(GL_ARRAY_BUFFER,sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-
+  glBufferData(GL_ARRAY_BUFFER,sizeof(skyboxVertices), skyboxVertices, GL_STATIC_DRAW);
+  printf("kaif\n");
+  dynlist_t* cubemap = dynlistInit(sizeof(char*), 4);
+  char *tx1 = "E:\\projects\\deltaengine\\3dengine\\textures\\right.png\0";
+  char *tx2 = "E:\\projects\\deltaengine\\3dengine\\textures\\left.png\0";
+  char *tx3 = "E:\\projects\\deltaengine\\3dengine\\textures\\top.png\0";
+  char *tx4 = "E:\\projects\\deltaengine\\3dengine\\textures\\bottom.png\0";
+  char *tx5 = "E:\\projects\\deltaengine\\3dengine\\textures\\front.png\0";
+  char *tx6 = "E:\\projects\\deltaengine\\3dengine\\textures\\back.png\0";
+  dynlistPush(cubemap, &tx1);
+  dynlistPush(cubemap, &tx2);
+  dynlistPush(cubemap, &tx3);
+  dynlistPush(cubemap, &tx4);
+  dynlistPush(cubemap, &tx5);
+  dynlistPush(cubemap, &tx6);
 
   glBindBuffer(GL_ARRAY_BUFFER,0);
-  unsigned int lightVAO;
-  glGenVertexArrays(1,&lightVAO);
-  glBindVertexArray(lightVAO);
+  unsigned int skyboxVAO;
+  glGenVertexArrays(1,&skyboxVAO);
+  glBindVertexArray(skyboxVAO);
 
   glBindBuffer(GL_ARRAY_BUFFER, VBO);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
   glEnableVertexAttribArray(0);
-
-
-  int width, height, nrChannels;
-  unsigned char *data = stbi_load("E:\\projects\\deltaengine\\3dengine\\textures\\woodboxtest.png", &width, &height, &nrChannels, 0);
-  unsigned int textures[2];
-  glGenTextures(1, &material.diffuseMap);
-  glBindTexture(GL_TEXTURE_2D, material.diffuseMap);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-  glGenerateMipmap(GL_TEXTURE_2D);
-
-  data = stbi_load("E:\\projects\\deltaengine\\3dengine\\textures\\woddboxtest_specular.png", &width, &height, &nrChannels, 0);
-  glGenTextures(1, &material.specularMap);
-  glBindTexture(GL_TEXTURE_2D, material.specularMap);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-  glGenerateMipmap(GL_TEXTURE_2D);
+  unsigned int cubemapTxt = LoadCubemap(cubemap);
 
 
 
   CreateShader(&modelshader, "E:\\projects\\deltaengine\\3dengine\\shaders\\modelvertex.vs", "E:\\projects\\deltaengine\\3dengine\\shaders\\modelfragment.fs");
+  CreateShader(&skyboxShader, "E:\\projects\\deltaengine\\3dengine\\shaders\\skybox.vs", "E:\\projects\\deltaengine\\3dengine\\shaders\\skybox.fs");
   
-  ModelInit(&backpack, "E:\\projects\\deltaengine\\3dengine\\resources\\models\\backpack\\backpack.obj");
-  ModelInit(&cube, "E:\\projects\\deltaengine\\3dengine\\resources\\models\\Cube\\cube.obj");
-  dynlistPush(models, &backpack);
-  dynlistPush(models, &cube);
   
-  stbi_image_free(data);
-  UseShader(&objectshader);
-  SetShaderInt(&objectshader, "material.diffuse", 0);
-  SetShaderInt(&objectshader, "material.specular", 1);
-  SetShaderMatrix4f(&objectshader, "projection", camera->projection);
-  UseShader(&lightShader);
-  SetShaderMatrix4f(&lightShader, "projection", camera->projection);
+
   UseShader(&modelshader);
-  SetShaderMatrix4f(&modelshader, "projection", camera->projection);
+  SetShaderMatrix4f(&modelshader, "projection", scene->activeCamera->projection);
+  UseShader(&skyboxShader);
+  SetShaderMatrix4f(&skyboxShader, "projection", scene->activeCamera->projection);
 
-
+  
   float lastTickTime = 0;
   state.deltaTime = 0;
   while(state.IsGameRuning)
   {
     int i = 0;
     float time = SDL_GetTicks();
-    CalcViewMatFromCamera(camera);
+    
+    CalcViewMatFromCamera(scene->activeCamera);
     state.deltaTime = (time - lastTickTime) / 1000.0f;
-    Update(state.deltaTime);
-    SetShaderMatrix4f(&lightShader,"view", camera->view);
+    Update(scene, state.deltaTime);
     UseShader(&modelshader);
     SetShaderFloat(&modelshader,"time", time);
-    SetShaderMatrix4f(&modelshader,"view", camera->view);
-    Render(ioptr,time);
-   // SDL_Delay(1);
+    SetShaderMatrix4f(&modelshader,"view",scene->activeCamera->view);
+    Render(scene, ioptr,time,skyboxVAO, cubemapTxt);
     lastTickTime = time;
   }
-  for(int i = 0; i < models->size; i++)
-  {
-    DeleteModel(dynlistAt(models,i));
-  }
-  dynlistFree(models);
-  NodeDestroy(myNode);
+  dynlistFree(cubemap);
+  SceneDestroy(scene);
   cImGui_ImplSDL2_Shutdown();
   cImGui_ImplOpenGL3_Shutdown();
   ImGui_DestroyContext(NULL);
@@ -270,18 +240,30 @@ float vertices[] = {//3 vertex coords //2 texture coords //3 normals
 
 
 
-void Update(float deltaTime)
-{
+void Update(Scene* scene, float deltaTime)
+{     
+      state.keyboardStates = SDL_GetKeyboardState(NULL);
+      if(isKeyDown(SDL_SCANCODE_W))
+        CameraNodeHandleWASD(scene->activeCamera, deltaTime, CAMERA_EDIT_FORWARD);
+      if(isKeyDown(SDL_SCANCODE_S))
+        CameraNodeHandleWASD(scene->activeCamera, deltaTime, CAMERA_EDIT_BACKWARD);
+      if(isKeyDown(SDL_SCANCODE_A))
+        CameraNodeHandleWASD(scene->activeCamera, deltaTime, CAMERA_EDIT_LEFT);
+      if(isKeyDown(SDL_SCANCODE_D))
+        CameraNodeHandleWASD(scene->activeCamera, deltaTime, CAMERA_EDIT_RIGHT);
     while(SDL_PollEvent(&state.event) != 0)
     {
       cImGui_ImplSDL2_ProcessEvent(&state.event);
       if(state.event.type == SDL_QUIT)
         state.IsGameRuning = false;
+
       if(state.event.type == SDL_MOUSEMOTION)
       {
         float dx, dy;
         dx = state.event.motion.xrel;
         dy = state.event.motion.yrel;
+        if(state.isMouseLocked) 
+          CameraHandleMouse(scene->activeCamera, dx, dy, true); 
       }
       if(state.event.type == SDL_KEYDOWN)
       {
@@ -303,4 +285,35 @@ void Update(float deltaTime)
   
   SDL_SetRelativeMouseMode(state.isMouseLocked);
 }
+unsigned int LoadCubemap(dynlist_t* faces)
+{
+    unsigned int textureID;
+    glGenTextures(1, &textureID);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
 
+    int width, height, nrChannels;
+    for (unsigned int i = 0; i < faces->size; i++)
+    { 
+        char* texture = *(char**)dynlistAt(faces, i);
+        unsigned char *data = stbi_load(texture, &width, &height, &nrChannels, 0);
+        if (data)
+        {
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 
+                         0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data
+            );
+            stbi_image_free(data);
+        }
+        else
+        {
+            printf("Cubemap tex failed to load at path: %s", texture);
+            stbi_image_free(data);
+        }
+    }
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+    return textureID;
+}  

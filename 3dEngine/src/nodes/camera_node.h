@@ -1,7 +1,18 @@
 #ifndef CAMERA_NODE_H
 #define CAMERA_NODE_H
 
+#define CAM_DEFAULT_SPEED 10.0f
+#define CAM_DEFAULT_SENS 0.1f
+
 #include "spatial_node.h"
+
+typedef enum
+{
+  CAMERA_EDIT_FORWARD,
+  CAMERA_EDIT_BACKWARD,
+  CAMERA_EDIT_LEFT,
+  CAMERA_EDIT_RIGHT
+} CameraMovementDir;
 
 typedef struct 
 {
@@ -9,6 +20,8 @@ typedef struct
   mat4 projection;
   mat4 view;
   vec3 updir;
+  float speed;
+  float sens;
   float fov;
   float nearPlane;
   float farPlane;
@@ -20,7 +33,10 @@ CameraNode* CameraNodeCreate(const char* name,float fov, vec3 worldUpVec, float 
 void CalcViewMatFromCamera(CameraNode* camera);
 void CalcProjectionMatFromCamera(CameraNode* camera);
 
-void UpdateCameraNode(CameraNode* update, float delta);
+void CameraNodeHandleWASD(CameraNode* camera, float delta, CameraMovementDir dir);
+void CameraHandleMouse(CameraNode* camera, float dX, float dY, bool constrainPitch);
+
+void CameraNodeUpdate(CameraNode* camera, float delta);
 
 void CameraNodeFree(CameraNode* node);
 

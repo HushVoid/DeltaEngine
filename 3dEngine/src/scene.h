@@ -18,14 +18,15 @@ typedef struct
 } Scene;
 
 Scene* SceneCreate();
-void SceneDelte(Scene* scene);
+void SceneDestroy(Scene* scene);
 
+void SceneDemoSetup(Scene* scene);
 
 void SceneUpdate(Scene* scene, float delta);
-void SceneRender(Scene* scene);
+void SceneRender(Scene* scene, shaderStruct* modelShader);
 
 
 void SceneSave(const Scene* scene, const char* path);
-void SceneLoad(const char* path);
+Scene* SceneLoad(const char* path);
 
 #endif // !SCENE_H
