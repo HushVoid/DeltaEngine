@@ -24,6 +24,26 @@ CameraNode* CameraNodeCreate(const char* name, float fov,  vec3 worldUpVec, floa
   return node;
 }
 
+CameraNode* CameraNodeCreateDefault(const char* name)
+{
+  CameraNode* node = calloc(1, sizeof(CameraNode));
+  strcpy_s(node->base.base.name, sizeof(node->base.base.name), name);
+  node->base.base.children = dynlistInit(sizeof(Node*), 4);
+  node->base.visible = true;
+  node->base.base.type = NODE_CAMERA;
+  TransformDefaultInit(&node->base.transform);
+  glm_mat4_identity(node->base.globalTransformMatrix);
+  glm_vec3_copy((vec3){0, 1, 0}, node->updir);
+  node->speed = CAM_DEFAULT_SPEED;
+  node->sens = CAM_DEFAULT_SENS;
+  node->fov = 60;
+  node->nearPlane = 0.125f;
+  node->farPlane = 100.0f;
+  node->aspect = 16.0/9.0;
+  CalcViewMatFromCamera(node);
+  CalcProjectionMatFromCamera(node);
+  return node;
+}
 
 void CalcViewMatFromCamera(CameraNode* camera)
 {

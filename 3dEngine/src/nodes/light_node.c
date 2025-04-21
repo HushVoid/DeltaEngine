@@ -61,6 +61,51 @@ SpotLightNode* SLightCreate(const char* name, float intencity, vec3 direction)
   glm_vec3_fill(node->light.color, 1);
   return node;
 }
+DirectionalLightNode* DLightCreateDefault(const char* name)
+{
+  DirectionalLightNode* node = calloc(1, sizeof(DirectionalLightNode));
+  strcpy_s(node->base.base.name, sizeof(node->base.base.name), name);
+  node->base.base.children = dynlistInit(sizeof(Node*), 4);
+  node->base.base.type = NODE_LIGHTD;
+  node->base.visible = true;
+  TransformDefaultInit(&node->base.transform);
+  glm_mat4_identity(node->base.globalTransformMatrix);
+  node->intencity = 1.0;
+  glm_vec3_copy((vec3){-0.45, -0.45, 0},node->light.direction);
+  glm_vec3_fill(node->light.color, 1);
+  return node;  
+}
+PointLightNode* PLightCreateDefault(const char* name)
+{
+  PointLightNode* node = calloc(1, sizeof(PointLightNode));
+  strcpy_s(node->base.base.name, sizeof(node->base.base.name), name);
+  node->base.base.children = dynlistInit(sizeof(Node*), 4);
+  node->base.base.type = NODE_LIGHTP;
+  node->base.visible = true;
+  TransformDefaultInit(&node->base.transform);
+  glm_mat4_identity(node->base.globalTransformMatrix);
+  node->intencity = 1.0;
+  node->radius = 20;
+  PointLightCalc(node);
+  glm_vec3_fill(node->light.color, 1);
+  return node;
+}
+SpotLightNode* SLightCreateDefault(const char* name)
+{
+  SpotLightNode* node = calloc(1, sizeof(SpotLightNode));
+  strcpy_s(node->base.base.name, sizeof(node->base.base.name), name);
+  node->base.base.children = dynlistInit(sizeof(Node*), 4);
+  node->base.base.type = NODE_LIGHTS;
+  node->base.visible = true;
+  TransformDefaultInit(&node->base.transform);
+  glm_mat4_identity(node->base.globalTransformMatrix);
+  node->light.cutOff = DEG2RAD(25);   
+  node->light.outerCutOff = DEG2RAD(35);   
+  node->intencity = 1.0;
+  glm_vec3_copy((vec3){0, -1, 0},node->light.direction);
+  glm_vec3_fill(node->light.color, 1);
+  return node;
+}
 void DLightToJSON(const DirectionalLightNode* light, cJSON* root)
 {
   SpatialNodeToJSON((const SpatialNode*)light, root);

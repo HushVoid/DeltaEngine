@@ -8,6 +8,7 @@
 #include "nodes/model_node.h"
 #include "nodes/camera_node.h"
 #include "nodes/light_node.h"
+#include "nodes/collision_node.h"
 
 
 typedef struct

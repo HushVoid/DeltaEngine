@@ -34,6 +34,10 @@ DirectionalLightNode* DLightCreate(const char* name, float intencity, vec3 direc
 PointLightNode* PLightCreate(const char* name, float intencity, float radius);
 SpotLightNode* SLightCreate(const char* name, float intencity, vec3 direction);
 
+DirectionalLightNode* DLightCreateDefault(const char* name);
+PointLightNode* PLightCreateDefault(const char* name);
+SpotLightNode* SLightCreateDefault(const char* name);
+
 void DLightFree(DirectionalLightNode* light);
 void PLightFree(PointLightNode* light);
 void SLightFree(SpotLightNode* light);

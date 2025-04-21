@@ -29,6 +29,7 @@ typedef struct
 } CameraNode;
 
 CameraNode* CameraNodeCreate(const char* name,float fov, vec3 worldUpVec, float nearPlane, float farPlane, float aspect);
+CameraNode* CameraNodeCreateDefault(const char* name);
 
 void CalcViewMatFromCamera(CameraNode* camera);
 void CalcProjectionMatFromCamera(CameraNode* camera);

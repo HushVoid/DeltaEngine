@@ -5,6 +5,8 @@
 #include "camera_node.h"
 #include "light_node.h"
 #include "player_node.h"
+#include "collision_node.h"
+#include <msxml.h>
 #include <string.h>
 
 
@@ -63,9 +65,40 @@ void NodeDestroy(Node* node)
     case NODE_PLAYER:
       PlayerNodeFree((PlayerNode*) node);
       return;
+    case NODE_COLLISION:
+      ColliderNodeFree((ColliderNode*) node);
+      return;
   }
 }
 
+bool NodeHasTransform(Node* node)
+{
+  return 
+  node->type == NODE_SPATIAL ||
+  node->type == NODE_MODEL ||
+  node->type == NODE_CAMERA ||
+  node->type == NODE_LIGHTD ||
+  node->type == NODE_LIGHTP ||
+  node->type == NODE_LIGHTS ||
+  node->type == NODE_PLAYER ||
+  node->type == NODE_COLLISION;
+  
+}
+void NodeReparent(Node* node, Node* newParent)
+{
+  if(node->parent)
+  {
+    unsigned int index = NodeFindChildIndex(node->parent, node->name, false);
+    dynlistDeleteAt(node->parent->children, index);
+  }
+  node->parent = newParent;
+  dynlistPush(newParent->children, &node);
+  if(NodeHasTransform(node))
+  {
+    SpatialNode* spatial = (SpatialNode*)node;
+    SpatialNodeUpdateGlobalTransform(spatial);
+  }
+}
 Node* NodeFindChild(Node* node, const char* name, bool recursive)
 {
   if(!node)
@@ -220,6 +253,8 @@ const char* NodeT2Str(NodeType type)
     return "lightp";
     case NODE_LIGHTS:
     return "lights";
+    case NODE_COLLISION:
+    return "collider";
   }
 }
 NodeType Str2NodeT(const char* type)
@@ -240,6 +275,8 @@ NodeType Str2NodeT(const char* type)
     return NODE_LIGHTP;
  if(strcmp(type, "lights") == 0)
     return NODE_LIGHTS;
+  if(strcmp(type, "collider") == 0)
+    return NODE_COLLISION;
   printf("No such type");
   return NODE_BASE;
 }
@@ -286,6 +323,11 @@ char* NodeToJSON(const Node* node)
         break;
         case NODE_PLAYER:
         const PlayerNode* player = (const PlayerNode*)node;
+        PlayerNodeToJSON(player, root);
+        break;
+        case NODE_COLLISION:
+        const ColliderNode* collider = (const ColliderNode*)node;
+        ColliderNodeToJSON(collider, root); 
         break;
       }
   if(node->children && node->children->size > 0)
@@ -338,6 +380,8 @@ Node* NodeFromJSON(const cJSON* json)
     break;
     case NODE_PLAYER:
     node = (Node*)PlayerNodeFromJSON(json);
+    case NODE_COLLISION:
+    node = (Node*)ColliderNodeFromJSON(json);
   }
   cJSON* children = cJSON_GetObjectItem(json, "children");
   if(children)

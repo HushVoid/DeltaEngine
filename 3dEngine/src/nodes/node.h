@@ -16,7 +16,8 @@ typedef enum
   NODE_LIGHTP,
   NODE_LIGHTS,
   NODE_CAMERA,
-  NODE_PLAYER
+  NODE_PLAYER,
+  NODE_COLLISION
 } NodeType;
 
 typedef struct Node
@@ -41,7 +42,7 @@ void NodeDeleteChild(Node* parent, Node* child); //By pointer
 void NodeDeleteChild_Index(Node* parent, unsigned int index); //By index
 void NodeReparent(Node* node, Node* newParent);
 bool NodeCanHaveChilder(Node* node);
-
+bool NodeHasTransform(Node* node);
 //(De)Serialisation
 const char* NodeT2Str(NodeType type);
 NodeType Str2NodeT(const char* type);

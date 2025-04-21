@@ -11,7 +11,9 @@ SOURCES += src/nodes/player_node.c
 SOURCES += src/nodes/camera_node.c
 SOURCES += src/nodes/components.c
 SOURCES += src/nodes/node.c
+SOURCES += src/nodes/collision_node.c
 SOURCES += src/scene.c
+SOURCES += src/ui.c
 
 
 

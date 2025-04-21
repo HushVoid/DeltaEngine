@@ -1,6 +1,7 @@
 #ifndef PLAYER_NODE_H
 #define PLAYER_NODE_H
 
+
 #include "node.h"
 #include "spatial_node.h"
 
@@ -15,6 +16,7 @@ typedef struct
 } PlayerNode;
 
 PlayerNode* PlayerNodeCreate(float speed, const char* name, bool hasGravity);
+PlayerNode* PlayerNodeCreateDefault(const char* name);
 
 void PlayerNodeUpdate(PlayerNode* node, float delta);
 
