@@ -7,9 +7,9 @@
 
 
 
-void DrawSceneHierarchy(Scene* scene);
-void DrawNodeTree(Node* node, Node* nodeSelected);
-
+void DrawSceneHierarchy(Scene* scene, Node** forSelection);
+void DrawNodeTree(Node* node, Node** nodeSelected);
+void DrawSceneInspector(Scene** scene);
 void DrawNodeInspector(Node* node);
 
 

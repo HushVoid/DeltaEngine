@@ -8,7 +8,7 @@ ColliderNode* ColliderNodeCreate(const char* name, vec3 min, vec3 max, bool isTr
   strcpy_s(node->base.base.name, sizeof(node->base.base.name), name);
   node->base.base.children = dynlistInit(sizeof(Node*), 4);
   node->base.visible = true;
-  node->base.base.type = NODE_MODEL;
+  node->base.base.type = NODE_COLLISION;
   TransformDefaultInit(&node->base.transform);
   glm_mat4_identity(node->base.globalTransformMatrix);
   glm_vec3_copy(min, node->min);
@@ -22,7 +22,7 @@ ColliderNode* ColliderNodeCreateDefault(const char* name)
   strcpy_s(node->base.base.name, sizeof(node->base.base.name), name);
   node->base.base.children = dynlistInit(sizeof(Node*), 4);
   node->base.visible = true;
-  node->base.base.type = NODE_MODEL;
+  node->base.base.type = NODE_COLLISION;
   TransformDefaultInit(&node->base.transform);
   glm_mat4_identity(node->base.globalTransformMatrix);
   glm_vec3_fill(node->min, -1);
@@ -103,7 +103,7 @@ ColliderNode* ColliderNodeFromJSON(const cJSON* json)
   return node;
 }
 
-void CollisionNodeFree(ColliderNode* node)
+void ColliderNodeFree(ColliderNode* node)
 {
   if(!node)
   {

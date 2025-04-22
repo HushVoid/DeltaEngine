@@ -18,7 +18,7 @@ typedef struct
   dynlist_t* renderQueue;
 } Scene;
 
-Scene* SceneCreate();
+Scene* SceneCreate(bool isLoaded);
 void SceneDestroy(Scene* scene);
 
 void SceneDemoSetup(Scene* scene);
@@ -26,6 +26,7 @@ void SceneDemoSetup(Scene* scene);
 void SceneUpdate(Scene* scene, float delta);
 void SceneRender(Scene* scene, shaderStruct* modelShader);
 
+void SceneSetupRenderQueue(Scene* scene);
 
 void SceneSave(const Scene* scene, const char* path);
 Scene* SceneLoad(const char* path);

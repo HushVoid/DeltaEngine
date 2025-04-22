@@ -26,10 +26,10 @@ void SpatialNodeUpdateGlobalTransform(SpatialNode* node)
     DEG2RAD(node->transform.rotation[1]),
     DEG2RAD(node->transform.rotation[2])
   };
-  glm_euler(eulerangles, rotMat);
+  glm_euler_yxz(eulerangles, rotMat);
+  glm_translate(node->globalTransformMatrix, node->transform.position);
   glm_scale(node->globalTransformMatrix, node->transform.scale);
   glm_mat4_mul(node->globalTransformMatrix, rotMat, node->globalTransformMatrix);
-  glm_translate(node->globalTransformMatrix, node->transform.position);
   if(node->base.parent && node->base.parent->type == NODE_SPATIAL)
   {
     SpatialNode* parent = (SpatialNode*)node->base.parent;

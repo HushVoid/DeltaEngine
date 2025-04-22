@@ -10,6 +10,8 @@ static struct
     SDL_Event event;
     SDL_GLContext glContext;
     float deltaTime;
+    Scene* loadedScene;
+    Node* selected_node;
     const Uint8 *keyboardStates;
     bool IsGameRuning;
     bool isMouseLocked;
@@ -62,14 +64,16 @@ static PointLight pointLights[4];
 static shaderStruct modelshader;
 static shaderStruct skyboxShader;
 void Render(Scene* scene, ImGuiIO* io, float time, unsigned int skyboxVAO, unsigned int cubemap)
-{
+{ if(!scene)
+    return;
   cImGui_ImplOpenGL3_NewFrame();
   cImGui_ImplSDL2_NewFrame();
   ImGui_NewFrame();
+  DrawSceneHierarchy(scene, &state.selected_node);
+  DrawSceneInspector(&scene);
+  if(state.selected_node)
   {
-    ImGui_Begin("salem", NULL, ImGuiWindowFlags_None);
-    ImGui_Text("eto text");
-    ImGui_End();
+    DrawNodeInspector(state.selected_node);
   }
   ImGui_Render();
   glViewport(0, 0,WIDTH , HEIGHT);
@@ -113,15 +117,15 @@ int main(int argc, char** argv)
 //ImGUI
    ImGui_CreateContext(NULL);
    ImGuiIO* ioptr = ImGui_GetIO();
-   ioptr->ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; 
+   ioptr->ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
    cImGui_ImplSDL2_InitForOpenGL(state.window, state.glContext);
    cImGui_ImplOpenGL3_InitEx("#version 330");
   
 //stbi
   stbi_set_flip_vertically_on_load(true); 
 
-  Scene* scene = SceneCreate();
-  SceneDemoSetup(scene); 
+  state.loadedScene = SceneCreate(false);
+  SceneDemoSetup(state.loadedScene); 
 unsigned int VBO; 
 
 float skyboxVertices[] = {
@@ -206,10 +210,6 @@ float skyboxVertices[] = {
   
   
 
-  UseShader(&modelshader);
-  SetShaderMatrix4f(&modelshader, "projection", scene->activeCamera->projection);
-  UseShader(&skyboxShader);
-  SetShaderMatrix4f(&skyboxShader, "projection", scene->activeCamera->projection);
 
   
   float lastTickTime = 0;
@@ -219,17 +219,14 @@ float skyboxVertices[] = {
     int i = 0;
     float time = SDL_GetTicks();
     
-    CalcViewMatFromCamera(scene->activeCamera);
     state.deltaTime = (time - lastTickTime) / 1000.0f;
-    Update(scene, state.deltaTime);
-    UseShader(&modelshader);
+    Update(state.loadedScene, state.deltaTime);  
     SetShaderFloat(&modelshader,"time", time);
-    SetShaderMatrix4f(&modelshader,"view",scene->activeCamera->view);
-    Render(scene, ioptr,time,skyboxVAO, cubemapTxt);
+    Render(state.loadedScene, ioptr,time,skyboxVAO, cubemapTxt);
     lastTickTime = time;
   }
   dynlistFree(cubemap);
-  SceneDestroy(scene);
+  SceneDestroy(state.loadedScene);
   cImGui_ImplSDL2_Shutdown();
   cImGui_ImplOpenGL3_Shutdown();
   ImGui_DestroyContext(NULL);
@@ -241,16 +238,21 @@ float skyboxVertices[] = {
 
 
 void Update(Scene* scene, float deltaTime)
-{     
+{   
+  if(!scene)
+    return;
       state.keyboardStates = SDL_GetKeyboardState(NULL);
-      if(isKeyDown(SDL_SCANCODE_W))
-        CameraNodeHandleWASD(scene->activeCamera, deltaTime, CAMERA_EDIT_FORWARD);
-      if(isKeyDown(SDL_SCANCODE_S))
-        CameraNodeHandleWASD(scene->activeCamera, deltaTime, CAMERA_EDIT_BACKWARD);
-      if(isKeyDown(SDL_SCANCODE_A))
-        CameraNodeHandleWASD(scene->activeCamera, deltaTime, CAMERA_EDIT_LEFT);
-      if(isKeyDown(SDL_SCANCODE_D))
-        CameraNodeHandleWASD(scene->activeCamera, deltaTime, CAMERA_EDIT_RIGHT);
+      if(state.isMouseLocked)
+      {
+        if(isKeyDown(SDL_SCANCODE_W))
+          CameraNodeHandleWASD(scene->activeCamera, deltaTime, CAMERA_EDIT_FORWARD);
+        if(isKeyDown(SDL_SCANCODE_S))
+          CameraNodeHandleWASD(scene->activeCamera, deltaTime, CAMERA_EDIT_BACKWARD);
+        if(isKeyDown(SDL_SCANCODE_A))
+          CameraNodeHandleWASD(scene->activeCamera, deltaTime, CAMERA_EDIT_LEFT);
+        if(isKeyDown(SDL_SCANCODE_D))
+          CameraNodeHandleWASD(scene->activeCamera, deltaTime, CAMERA_EDIT_RIGHT);
+      }
     while(SDL_PollEvent(&state.event) != 0)
     {
       cImGui_ImplSDL2_ProcessEvent(&state.event);
@@ -282,7 +284,13 @@ void Update(Scene* scene, float deltaTime)
         }
       }
    }
-  
+  CalcViewMatFromCamera(scene->activeCamera);
+  UseShader(&skyboxShader);
+  SetShaderMatrix4f(&skyboxShader, "projection", scene->activeCamera->projection);
+
+  UseShader(&modelshader);
+  SetShaderMatrix4f(&modelshader, "projection", scene->activeCamera->projection);
+  SetShaderMatrix4f(&modelshader,"view",scene->activeCamera->view);
   SDL_SetRelativeMouseMode(state.isMouseLocked);
 }
 unsigned int LoadCubemap(dynlist_t* faces)

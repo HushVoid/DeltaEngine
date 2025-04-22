@@ -1,10 +1,59 @@
 #include "ui.h"
+#include "include/generated/dcimgui.h"
+#include "model.h"
+#include "nodes/camera_node.h"
+#include "nodes/light_node.h"
+#include "nodes/model_node.h"
+#include "nodes/node.h"
+#include "nodes/player_node.h"
+#include "scene.h"
+#include <string.h>
 
 
-void DrawSceneHierarchy(Scene* scene)
+void DrawSceneInspector(Scene** scene)
+{
+  if(!scene || !*scene)
+    return;
+  ImGui_Begin("Scene inspector", NULL, ImGuiWindowFlags_None);
+  static char path_buf[256];
+  ImGui_InputText("Save/Load path", path_buf, sizeof(path_buf), ImGuiInputTextFlags_None);
+  if(ImGui_Button("Save scene"))
+  {
+    SceneSave(*scene, path_buf);
+  }
+  if(ImGui_Button("Load scene"))
+  {
+   Scene* newScene = SceneLoad(path_buf);
+    if(newScene)
+    {
+      SceneDestroy(*scene);
+      *scene = newScene;
+    }
+  }      
+  static int screenSize[2];
+  CameraNode* camera = (*scene)->activeCamera;
+  ImGui_DragFloat("Fov", &camera->fov);
+  ImGui_DragFloat("Near frustum plane", &camera->nearPlane);
+  ImGui_DragFloat("Far frusutum plane", &camera->farPlane);
+  if(ImGui_InputInt2("Screen width height", screenSize, ImGuiInputTextFlags_None))
+  {
+    if(screenSize[0] < 0 || screenSize[1] < 0)
+    {
+     screenSize[0] = 0; 
+     screenSize[1] = 0; 
+    }
+  }
+  if(screenSize[1] > 0)
+    camera->aspect = (float)screenSize[0] / (float)screenSize[1];
+  
+  CalcProjectionMatFromCamera(camera);
+  ImGui_End();
+}
+void DrawSceneHierarchy(Scene* scene, Node** forSelection)
 {
   ImGui_Begin("Scene hierarchy", NULL, ImGuiWindowFlags_None);
-  DrawNodeTree(scene->root, NULL);
+  DrawNodeTree(scene->root, forSelection);
+  bool openPopUp = false;
 
   if(ImGui_BeginPopupContextWindow())
   {
@@ -59,13 +108,39 @@ void DrawSceneHierarchy(Scene* scene)
       NodeAddChild(scene->root, newNodeN);
       dynlistPush(scene->renderQueue, &newNodeN);
     }
-    if(ImGui_MenuItem("Custom model..."))
+    if(ImGui_MenuItem("Create Custom model..."))
     {
-      ImGui_OpenPopup("Custom Model Path", ImGuiPopupFlags_None);
+      openPopUp = true;
+    }
+    if(ImGui_MenuItem("Create Player node"))
+    {
+      PlayerNode* newNode = PlayerNodeCreateDefault("Player");
+      NodeAddChild(scene->root, (Node*)newNode);
+    }
+    if(ImGui_MenuItem("DeleteNode"))
+    {
+      if(*forSelection)
+      {
+        Node* nodeDelete = *forSelection;
+        Node* parent = nodeDelete->parent;
+        if(parent)
+        {
+          NodeDeleteChild(parent, nodeDelete);
+        }else 
+        {
+          NodeDestroy(nodeDelete); 
+        }
+        *forSelection = NULL;
+      }
     }
     ImGui_EndPopup();
   }
-  if(ImGui_BeginPopupModal("Custom Model Path", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+
+
+  if(openPopUp)
+    ImGui_OpenPopup("Custom Model Path", ImGuiPopupFlags_None);
+  
+  if(ImGui_BeginPopup("Custom Model Path", ImGuiWindowFlags_None))
   {
     static char pathBuffer[256] = "";
     ImGui_InputText("Model Path", pathBuffer, sizeof(pathBuffer), ImGuiInputTextFlags_None);
@@ -90,16 +165,16 @@ void DrawSceneHierarchy(Scene* scene)
   }
   ImGui_End();
 }
-void DrawNodeTree(Node* node, Node* nodeSelected)
+void DrawNodeTree(Node* node, Node** nodeSelected)
 {
   ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow;
-  if(node == nodeSelected) flags |= ImGuiTreeNodeFlags_Selected;
+  if(node == *nodeSelected) flags |= ImGuiTreeNodeFlags_Selected;
   if(node->children == NULL || node->children->size == 0) flags |= ImGuiTreeNodeFlags_Leaf;
 
   bool isOpen = ImGui_TreeNodeExPtr(node, flags, "%s (%s)", node->name, NodeT2Str(node->type));
   if(ImGui_IsItemClicked())
   {
-    nodeSelected = node; 
+    *nodeSelected = node; 
   }
 
   if(ImGui_BeginDragDropSource(ImGuiDragDropFlags_None))
@@ -128,6 +203,8 @@ void DrawNodeTree(Node* node, Node* nodeSelected)
       for(int i = 0; i < node->children->size; i++)
       {
         Node* child = *(Node**)dynlistAt(node->children, i);
+        if(strcmp(child->name,"MAINCAM") == 0)
+          continue;
         DrawNodeTree(child, nodeSelected);
       }
     }
@@ -136,5 +213,101 @@ void DrawNodeTree(Node* node, Node* nodeSelected)
 }
 void DrawNodeInspector(Node* node)
 {
-  
+  ImGui_Begin("Inspector", NULL, ImGuiWindowFlags_AlwaysAutoResize);
+  ImGui_Text("Editing: %s", node->name);
+
+  static char name_buf[256];
+  strcpy_s(name_buf, sizeof(name_buf), node->name);
+  if(ImGui_InputText("Name", name_buf, sizeof(name_buf), ImGuiInputTextFlags_None))
+  {
+   node->name[0] = '\0';
+   strcpy_s(node->name, sizeof(node->name), name_buf);
+  }
+  if(NodeHasTransform(node))
+  {
+    SpatialNode* spatial = (SpatialNode*)node;
+    ImGui_DragFloat3("Position", spatial->transform.position);
+    ImGui_DragFloat3("Rotation", spatial->transform.rotation);
+    ImGui_DragFloat3("Scale", spatial->transform.scale);
+    if(node->type == NODE_CAMERA)
+    {
+      static int screenSize[2];
+      CameraNode* camera = (CameraNode*)node;
+      ImGui_DragFloat("Fov", &camera->fov);
+      ImGui_DragFloat("Near frustum plane", &camera->nearPlane);
+      ImGui_DragFloat("Far frusutum plane", &camera->farPlane);
+      if(ImGui_InputInt2("Screen width height", screenSize, ImGuiInputTextFlags_None))
+      {
+        if(screenSize[0] < 0 || screenSize[1] < 0)
+        {
+         screenSize[0] = 0; 
+         screenSize[1] = 0; 
+        }
+      }
+      if(screenSize[1] > 0)
+        camera->aspect = (float)screenSize[0] / (float)screenSize[1];
+      
+      CalcProjectionMatFromCamera(camera);
+    }
+    if(node->type == NODE_MODEL)
+    {
+      ModelNode* model = (ModelNode*)node;
+      if(model->shapeType == MODEL_CUSTOM)
+      {      
+        static char path_buf[256];
+        strcpy_s(path_buf, sizeof(path_buf), model->modelPath);
+        if(ImGui_InputText("Model path", path_buf, sizeof(path_buf), ImGuiInputTextFlags_None))
+        {
+          if(ImGui_Button("reload"))
+          {
+            model->modelPath[0] = '\0';
+            strcpy_s(model->modelPath, sizeof(model->modelPath), path_buf);
+            DeleteModel(&model->model);
+            ModelInit(&model->model, path_buf);
+          }
+        }
+      }
+    }
+    if(node->type == NODE_LIGHTD)
+    {
+      DirectionalLightNode* light = (DirectionalLightNode*) node;
+      ImGui_DragFloat("Intencity", &light->intencity);  
+      ImGui_ColorEdit3("Color", light->light.color, ImGuiColorEditFlags_None);  
+      ImGui_DragFloat3("Direction", light->light.direction);  
+    }
+    if(node->type == NODE_LIGHTP)
+    {
+      PointLightNode* light = (PointLightNode*) node;
+      ImGui_DragFloat("Intencity", &light->intencity);  
+      ImGui_ColorEdit3("Color", light->light.color, ImGuiColorEditFlags_None);  
+      ImGui_DragFloat("Radius", &light->radius);
+      PointLightCalc(light); 
+    }
+    if(node->type == NODE_LIGHTS)
+    {
+      SpotLightNode* light = (SpotLightNode*) node;
+      ImGui_DragFloat("Intencity", &light->intencity);  
+      ImGui_ColorEdit3("Color", light->light.color, ImGuiColorEditFlags_None);  
+      ImGui_DragFloat3("Direction", light->light.direction);
+      ImGui_DragFloat("Inner angle", &light->light.cutOff);  
+      ImGui_DragFloat("Outer angle", &light->light.outerCutOff);  
+    }
+    if(node->type == NODE_PLAYER)
+    {
+      PlayerNode* player = (PlayerNode*)node;
+      ImGui_DragFloat("Speed", &player->speed);
+      ImGui_DragFloat("Health", &player->health);
+      ImGui_Checkbox("Affected by gravity", &player->gravityAffected);
+    }
+    if(node->type == NODE_COLLISION)
+    {
+      ColliderNode* collider = (ColliderNode*)node;
+      ImGui_DragFloat3("Min AABB", collider->min);
+      ImGui_DragFloat3("Max AABB", collider->max);
+      ImGui_Checkbox("Is Trigger", &collider->isTrigger);
+    }
+  }
+
+
+  ImGui_End();
 }

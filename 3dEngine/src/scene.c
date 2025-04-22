@@ -1,11 +1,15 @@
 #include "scene.h"
+#include "nodes/node.h"
 
-Scene* SceneCreate()
+Scene* SceneCreate(bool isLoaded)
 {
   Scene* scene = calloc(1, sizeof(Scene));
   scene->root = NodeCreate("root");
-  scene->activeCamera = CameraNodeCreate("MAINCAM", 60, (vec3){0,1,0}, 0.125, 100, 16.0/9.0);
-  NodeAddChild(scene->root, (Node*)scene->activeCamera);
+  if(!isLoaded) 
+    scene->activeCamera = CameraNodeCreate("MAINCAM", 60, (vec3){0,1,0}, 0.125, 100, 16.0/9.0);
+  else
+   scene->activeCamera = NULL;
+  NodeAddChild(scene->root, (Node*)scene->activeCamera); 
   scene->renderQueue = dynlistInit(sizeof(Node*), 4);
   return scene;
 }
@@ -21,8 +25,8 @@ void SceneDemoSetup(Scene* scene)
 {
   ModelNode* cube = ModelNodeCreate(MODEL_CUBE, "cube", NULL); 
   ModelNode* cylinder = ModelNodeCreate(MODEL_CYLINDER, "cylinder", NULL); 
-  ModelNode* capsule = ModelNodeCreate(MODEL_CAPSULE, "cube", NULL);
-  ModelNode* backpack = ModelNodeCreate(MODEL_CUSTOM, "cube", "E:\\projects\\deltaengine\\3dengine\\resources\\models\\backpack\\backpack.obj");
+  ModelNode* capsule = ModelNodeCreate(MODEL_CAPSULE, "capsule", NULL);
+  ModelNode* backpack = ModelNodeCreate(MODEL_CUSTOM, "backpack", "E:\\projects\\deltaengine\\3dengine\\resources\\models\\backpack\\backpack.obj");
   Node* cubeNode_t = (Node*)cube;
   Node* cylinderNode_t = (Node*)cylinder;
   Node* capsuleNode_t= (Node*)capsule;
@@ -64,10 +68,28 @@ Scene* SceneLoad(const char* path)
     printf("SceneLoad: No such scene file");
   }
   cJSON* json = cJSON_Parse(json_str);
-  Scene* scene = SceneCreate();
+  Scene* scene = SceneCreate(true);
   scene->root = NodeFromJSON(json);
+  SceneSetupRenderQueue(scene);
   scene->activeCamera = (CameraNode*)NodeFindChild(scene->root, "MAINCAM", false);
   free(json_str);
   cJSON_Delete(json);
   return scene;
+}
+void SceneSetupRenderQueue(Scene* scene)
+{
+ if(scene->root->children->size == 0)
+  {
+    printf("SceneSetupRenderQueue: root is empty");
+    return;
+  }
+  for(int i = 0; i <scene->root->children->size; i++)
+  {
+    Node* node = *(Node**)dynlistAt(scene->root->children, i);
+    if(node->type == NODE_MODEL)
+    {
+      dynlistPush(scene->root->children, &node);
+    }
+  }
+  
 }
