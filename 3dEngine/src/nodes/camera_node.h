@@ -26,6 +26,7 @@ typedef struct
   float nearPlane;
   float farPlane;
   float aspect;
+  bool isActive;
 } CameraNode;
 
 CameraNode* CameraNodeCreate(const char* name,float fov, vec3 worldUpVec, float nearPlane, float farPlane, float aspect);

@@ -1,15 +1,22 @@
 #include "scene.h"
+#include "dynlist.h"
+#include "nodes/collision_node.h"
 #include "nodes/node.h"
 
 Scene* SceneCreate(bool isLoaded)
 {
   Scene* scene = calloc(1, sizeof(Scene));
-  scene->root = NodeCreate("root");
   if(!isLoaded) 
+  {
+    scene->root = NodeCreate("root");
     scene->activeCamera = CameraNodeCreate("MAINCAM", 60, (vec3){0,1,0}, 0.125, 100, 16.0/9.0);
-  else
+    NodeAddChild(scene->root, (Node*)scene->activeCamera); 
+  } 
+  else 
+  {
+   scene->root = NULL;
    scene->activeCamera = NULL;
-  NodeAddChild(scene->root, (Node*)scene->activeCamera); 
+  }
   scene->renderQueue = dynlistInit(sizeof(Node*), 4);
   return scene;
 }
@@ -44,7 +51,44 @@ void SceneDemoSetup(Scene* scene)
   SpatialNodeSetPos((SpatialNode*)cube , (vec3){0,0,3});
   SpatialNodeSetPos((SpatialNode*)backpack , (vec3){0,0,-3});
 }
-
+bool CheckSphereCollisionWithScene(vec3 sphereCenter, float sphereRadius, Scene* scene) 
+{
+ if(!scene)
+  {
+    printf("CheckSphereCollisionWithScene: scene is invalid\n");
+    return false;
+  }
+  dynlist_t * colliders = SceneFindAllNodesOfType(scene, NODE_COLLISION);
+  for(int i = 0; i < colliders->size; i++)
+  {
+    ColliderNode* col = (ColliderNode*)*(Node**)dynlistAt(colliders, i);
+      
+    vec3 colMin, colMax;
+    ColliderNodeGetWorldAABB(col, colMin, colMax);
+      
+    if (CheckSphereCollision(sphereCenter, sphereRadius, colMin, colMax)) 
+    {
+      dynlistFree(colliders);
+      return true;
+    }
+  }
+  dynlistFree(colliders);
+  return false;
+}
+void IsPlayerGrounded(PlayerNode* player, Scene* scene, float checkDistance) 
+{
+    if (!player || !scene) return;
+    
+    vec3 checkPoint;
+    glm_vec3_copy(player->base.transform.position, checkPoint);
+    checkPoint[1] -= checkDistance; 
+    
+    bool isColiding =  CheckSphereCollisionWithScene(
+        checkPoint,
+        0.3f, 
+        scene
+    );
+}
 void SceneRender(Scene* scene, shaderStruct* modelShader)
 {
   for(int i = 0; i < scene->renderQueue->size; i++)
@@ -53,6 +97,41 @@ void SceneRender(Scene* scene, shaderStruct* modelShader)
     if(renderNode->type == NODE_MODEL)
       ModelNodeRender((ModelNode*)renderNode,modelShader);
   }
+}
+
+//VERY memory leaky free the retured list please
+dynlist_t* SceneFindAllNodesOfType(Scene* scene, NodeType type)
+{
+  dynlist_t* nodes = dynlistInit(sizeof(Node*), 4);
+  for(int i = 0; i < scene->root->children->size; i++)
+  {
+    Node ** node = (Node**)dynlistAt(scene->root->children, i);
+    if(node && (*node)->type == type)
+    {
+      dynlistPush(nodes, node);
+    }
+  }
+  return nodes;
+}
+void ScenePhysicsUpdateCollisions(Scene* scene)
+{
+  dynlist_t* colliders = SceneFindAllNodesOfType(scene, NODE_COLLISION);
+  for(int i = 0; i < colliders->size; i++ )
+  {
+    ColliderNode* a  = (ColliderNode*)*(Node**)dynlistAt(colliders, i);
+    for(int j = i + 1; j < colliders->size; j++)
+    {
+      ColliderNode* b = (ColliderNode*)*(Node**)dynlistAt(colliders, j);
+
+      bool isColiding = ColliderNodeCheckCollision(a, b);
+      ColliderNodeHandleStateChange(a, b, isColiding);
+      if(isColiding && !a->isTrigger && !b->isTrigger)
+      {
+        ColliderNodeResolveCollision(a, b);
+      }
+    }
+  }
+  dynlistFree(colliders);
 }
 void SceneSave(const Scene* scene, const char* path)
 {
@@ -70,8 +149,8 @@ Scene* SceneLoad(const char* path)
   cJSON* json = cJSON_Parse(json_str);
   Scene* scene = SceneCreate(true);
   scene->root = NodeFromJSON(json);
-  SceneSetupRenderQueue(scene);
   scene->activeCamera = (CameraNode*)NodeFindChild(scene->root, "MAINCAM", false);
+  SceneSetupRenderQueue(scene);
   free(json_str);
   cJSON_Delete(json);
   return scene;
@@ -83,12 +162,12 @@ void SceneSetupRenderQueue(Scene* scene)
     printf("SceneSetupRenderQueue: root is empty");
     return;
   }
-  for(int i = 0; i <scene->root->children->size; i++)
+  for(int i = 0; i < scene->root->children->size; i++)
   {
     Node* node = *(Node**)dynlistAt(scene->root->children, i);
     if(node->type == NODE_MODEL)
     {
-      dynlistPush(scene->root->children, &node);
+      dynlistPush(scene->renderQueue, &node);
     }
   }
   

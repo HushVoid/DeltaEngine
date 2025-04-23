@@ -1,19 +1,19 @@
 {
 	"type":	"base",
-	"name":	"root",
+	"name":	"helo",
 	"enabled":	true,
 	"children":	[{
 			"type":	"camera",
 			"name":	"MAINCAM",
 			"enabled":	false,
 			"transform":	{
-				"position":	[10.006240844726563, 1.876605749130249, -0.11890719830989838],
-				"rotation":	[-12.79998779296875, 82.7997817993164, 0],
+				"position":	[6.46704339981079, 6.1591095924377441, 2.2125265598297119],
+				"rotation":	[-36.600067138671875, 92.9001998901367, 0],
 				"scale":	[1, 1, 1]
 			},
 			"visible":	true,
-			"fov":	60,
-			"nearplane":	0.125,
+			"fov":	70,
+			"nearplane":	0.10000000149011612,
 			"farplane":	100,
 			"aspect":	1.7777777910232544
 		}, {
@@ -42,15 +42,15 @@
 			"modelpath":	"E:\\projects\\deltaengine\\3dengine\\resources\\models\\Cylinder\\Cylinder.obj"
 		}, {
 			"type":	"model",
-			"name":	"backpack",
+			"name":	"capsule",
 			"enabled":	false,
 			"transform":	{
-				"position":	[0, 0, -3],
+				"position":	[0, 0, 0],
 				"rotation":	[0, 0, 0],
 				"scale":	[1, 1, 1]
 			},
 			"visible":	true,
-			"shapetype":	"Mdl_custom",
-			"modelpath":	"E:\\projects\\deltaengine\\3dengine\\resources\\models\\backpack\\backpack.obj"
+			"shapetype":	"Mdl_capsule",
+			"modelpath":	"E:\\projects\\deltaengine\\3dengine\\resources\\models\\Capsule\\Capsule.obj"
 		}]
 }

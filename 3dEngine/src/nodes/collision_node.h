@@ -13,15 +13,19 @@ typedef struct
   vec3 max;
   bool isTrigger;
   bool isColliding;
+  bool isStatic;
 }ColliderNode;
 
 
-ColliderNode* ColliderNodeCreate(const char* name, vec3 min, vec3 max, bool isTrigger);
+ColliderNode* ColliderNodeCreate(const char* name, vec3 min, vec3 max, bool isTrigger, bool isStatic);
 ColliderNode* ColliderNodeCreateDefault(const char* name);
 
 void ColliderNodeGetWorldAABB(const ColliderNode* collider, vec3 outMin, vec3 outMax);
 
+bool CheckSphereCollision(vec3 sphereCenter, float sphereRadius, vec3 boxMin, vec3 boxMax);
 bool ColliderNodeCheckCollision(const ColliderNode* a, const ColliderNode* b);
+void ColliderNodeHandleStateChange(ColliderNode* a, ColliderNode* b, bool state);
+void ColliderNodeResolveCollision(ColliderNode* a, ColliderNode*b);
 
 void ColliderNodeFree(ColliderNode* node);
 

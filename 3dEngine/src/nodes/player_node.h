@@ -4,21 +4,25 @@
 
 #include "node.h"
 #include "spatial_node.h"
-
+#include "camera_node.h"
+#include "../include/SDL2/SDL.h"
 typedef struct
 {
   SpatialNode base;
   float health;
   float speed;
+  float jumpForce;
   vec3 velocity;
   vec3 upDir;
   bool gravityAffected;
+  bool isGrounded;
 } PlayerNode;
 
-PlayerNode* PlayerNodeCreate(float speed, const char* name, bool hasGravity);
+PlayerNode* PlayerNodeCreate(float jumpForce,float speed, const char* name, bool hasGravity);
 PlayerNode* PlayerNodeCreateDefault(const char* name);
 
-void PlayerNodeUpdate(PlayerNode* node, float delta);
+void PlayerNodeUpdate(PlayerNode* player, float delta, const Uint8 *keyboardState);
+void PlayerNodeHandleMouse(PlayerNode* player, CameraNode* camera, float dx, float dy);
 
 void PlayerNodeFree(PlayerNode* node);
 

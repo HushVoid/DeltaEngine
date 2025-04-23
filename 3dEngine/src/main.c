@@ -28,7 +28,7 @@ bool isKeyDown(SDL_Scancode scanCode)
   return state.keyboardStates[scanCode];
 }
 
-void Update(Scene* scene, float deltaTime);
+void Update(float deltaTime);
 unsigned int LoadCubemap(dynlist_t* faces);
 GLenum errorCheck (int checkNumber)
 {
@@ -63,14 +63,14 @@ static float f = 0.0f;
 static PointLight pointLights[4];
 static shaderStruct modelshader;
 static shaderStruct skyboxShader;
-void Render(Scene* scene, ImGuiIO* io, float time, unsigned int skyboxVAO, unsigned int cubemap)
-{ if(!scene)
+void Render(ImGuiIO* io, float time, unsigned int skyboxVAO, unsigned int cubemap)
+{ if(!state.loadedScene)
     return;
   cImGui_ImplOpenGL3_NewFrame();
   cImGui_ImplSDL2_NewFrame();
   ImGui_NewFrame();
-  DrawSceneHierarchy(scene, &state.selected_node);
-  DrawSceneInspector(&scene);
+  DrawSceneHierarchy(state.loadedScene, &state.selected_node);
+  DrawSceneInspector(&state.loadedScene);
   if(state.selected_node)
   {
     DrawNodeInspector(state.selected_node);
@@ -79,13 +79,13 @@ void Render(Scene* scene, ImGuiIO* io, float time, unsigned int skyboxVAO, unsig
   glViewport(0, 0,WIDTH , HEIGHT);
   glClearColor(clearColor.x * clearColor.w, clearColor.y * clearColor.w, clearColor.z * clearColor.w, clearColor.w);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  SceneRender(scene, &modelshader);
+  SceneRender(state.loadedScene, &modelshader);
   glDepthFunc(GL_LEQUAL);
   UseShader(&skyboxShader);
   mat3 view3;
-  glm_mat4_pick3(scene->activeCamera->view, view3);
-  mat3_to_mat4(view3,scene->activeCamera->view);
-  SetShaderMatrix4f(&skyboxShader, "view", scene->activeCamera->view);
+  glm_mat4_pick3(state.loadedScene->activeCamera->view, view3);
+  mat3_to_mat4(view3,state.loadedScene->activeCamera->view);
+  SetShaderMatrix4f(&skyboxShader, "view", state.loadedScene->activeCamera->view);
   glBindVertexArray(skyboxVAO);
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap);
@@ -220,9 +220,9 @@ float skyboxVertices[] = {
     float time = SDL_GetTicks();
     
     state.deltaTime = (time - lastTickTime) / 1000.0f;
-    Update(state.loadedScene, state.deltaTime);  
+    Update(state.deltaTime);  
     SetShaderFloat(&modelshader,"time", time);
-    Render(state.loadedScene, ioptr,time,skyboxVAO, cubemapTxt);
+    Render(ioptr,time,skyboxVAO, cubemapTxt);
     lastTickTime = time;
   }
   dynlistFree(cubemap);
@@ -237,21 +237,21 @@ float skyboxVertices[] = {
 
 
 
-void Update(Scene* scene, float deltaTime)
+void Update(float deltaTime)
 {   
-  if(!scene)
+  if(!state.loadedScene)
     return;
       state.keyboardStates = SDL_GetKeyboardState(NULL);
       if(state.isMouseLocked)
       {
         if(isKeyDown(SDL_SCANCODE_W))
-          CameraNodeHandleWASD(scene->activeCamera, deltaTime, CAMERA_EDIT_FORWARD);
+          CameraNodeHandleWASD(state.loadedScene->activeCamera, deltaTime, CAMERA_EDIT_FORWARD);
         if(isKeyDown(SDL_SCANCODE_S))
-          CameraNodeHandleWASD(scene->activeCamera, deltaTime, CAMERA_EDIT_BACKWARD);
+          CameraNodeHandleWASD(state.loadedScene->activeCamera, deltaTime, CAMERA_EDIT_BACKWARD);
         if(isKeyDown(SDL_SCANCODE_A))
-          CameraNodeHandleWASD(scene->activeCamera, deltaTime, CAMERA_EDIT_LEFT);
+          CameraNodeHandleWASD(state.loadedScene->activeCamera, deltaTime, CAMERA_EDIT_LEFT);
         if(isKeyDown(SDL_SCANCODE_D))
-          CameraNodeHandleWASD(scene->activeCamera, deltaTime, CAMERA_EDIT_RIGHT);
+          CameraNodeHandleWASD(state.loadedScene->activeCamera, deltaTime, CAMERA_EDIT_RIGHT);
       }
     while(SDL_PollEvent(&state.event) != 0)
     {
@@ -265,7 +265,7 @@ void Update(Scene* scene, float deltaTime)
         dx = state.event.motion.xrel;
         dy = state.event.motion.yrel;
         if(state.isMouseLocked) 
-          CameraHandleMouse(scene->activeCamera, dx, dy, true); 
+          CameraHandleMouse(state.loadedScene->activeCamera, dx, dy, true); 
       }
       if(state.event.type == SDL_KEYDOWN)
       {
@@ -284,13 +284,13 @@ void Update(Scene* scene, float deltaTime)
         }
       }
    }
-  CalcViewMatFromCamera(scene->activeCamera);
+  CalcViewMatFromCamera(state.loadedScene->activeCamera);
   UseShader(&skyboxShader);
-  SetShaderMatrix4f(&skyboxShader, "projection", scene->activeCamera->projection);
+  SetShaderMatrix4f(&skyboxShader, "projection", state.loadedScene->activeCamera->projection);
 
   UseShader(&modelshader);
-  SetShaderMatrix4f(&modelshader, "projection", scene->activeCamera->projection);
-  SetShaderMatrix4f(&modelshader,"view",scene->activeCamera->view);
+  SetShaderMatrix4f(&modelshader, "projection", state.loadedScene->activeCamera->projection);
+  SetShaderMatrix4f(&modelshader,"view",state.loadedScene->activeCamera->view);
   SDL_SetRelativeMouseMode(state.isMouseLocked);
 }
 unsigned int LoadCubemap(dynlist_t* faces)

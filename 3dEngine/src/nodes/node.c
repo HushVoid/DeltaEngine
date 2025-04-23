@@ -390,7 +390,8 @@ Node* NodeFromJSON(const cJSON* json)
     cJSON_ArrayForEach(childJson, children)
     {
       Node* child = NodeFromJSON(childJson);
-      NodeAddChild(node, child);
+      if(child)
+        NodeAddChild(node, child);
     }
   }
   return node;

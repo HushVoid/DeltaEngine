@@ -6,6 +6,7 @@
 #include "nodes/model_node.h"
 #include "nodes/node.h"
 #include "nodes/player_node.h"
+#include "nodes/spatial_node.h"
 #include "scene.h"
 #include <string.h>
 
@@ -17,19 +18,8 @@ void DrawSceneInspector(Scene** scene)
   ImGui_Begin("Scene inspector", NULL, ImGuiWindowFlags_None);
   static char path_buf[256];
   ImGui_InputText("Save/Load path", path_buf, sizeof(path_buf), ImGuiInputTextFlags_None);
-  if(ImGui_Button("Save scene"))
-  {
-    SceneSave(*scene, path_buf);
-  }
-  if(ImGui_Button("Load scene"))
-  {
-   Scene* newScene = SceneLoad(path_buf);
-    if(newScene)
-    {
-      SceneDestroy(*scene);
-      *scene = newScene;
-    }
-  }      
+
+
   static int screenSize[2];
   CameraNode* camera = (*scene)->activeCamera;
   ImGui_DragFloat("Fov", &camera->fov);
@@ -45,8 +35,24 @@ void DrawSceneInspector(Scene** scene)
   }
   if(screenSize[1] > 0)
     camera->aspect = (float)screenSize[0] / (float)screenSize[1];
-  
   CalcProjectionMatFromCamera(camera);
+  if(ImGui_Button("Save scene"))
+  {
+    SceneSave(*scene, path_buf);
+  }
+  if(ImGui_Button("Load scene"))
+  {
+   Scene* newScene = SceneLoad(path_buf);
+   Scene* oldScene = *scene;
+    if(newScene)
+    {
+      if(newScene != *scene)
+      {
+        *scene = newScene;
+        SceneDestroy(oldScene);
+      }
+    }
+  }      
   ImGui_End();
 }
 void DrawSceneHierarchy(Scene* scene, Node** forSelection)
@@ -246,7 +252,7 @@ void DrawNodeInspector(Node* node)
       }
       if(screenSize[1] > 0)
         camera->aspect = (float)screenSize[0] / (float)screenSize[1];
-      
+      ImGui_Checkbox("Is active", &camera->isActive); 
       CalcProjectionMatFromCamera(camera);
     }
     if(node->type == NODE_MODEL)
@@ -296,6 +302,7 @@ void DrawNodeInspector(Node* node)
     {
       PlayerNode* player = (PlayerNode*)node;
       ImGui_DragFloat("Speed", &player->speed);
+      ImGui_DragFloat("Jump force", &player->jumpForce);
       ImGui_DragFloat("Health", &player->health);
       ImGui_Checkbox("Affected by gravity", &player->gravityAffected);
     }
@@ -305,7 +312,9 @@ void DrawNodeInspector(Node* node)
       ImGui_DragFloat3("Min AABB", collider->min);
       ImGui_DragFloat3("Max AABB", collider->max);
       ImGui_Checkbox("Is Trigger", &collider->isTrigger);
+      ImGui_Checkbox("Is Static", &collider->isStatic);
     }
+    SpatialNodeUpdateGlobalTransform(spatial);
   }
 
 

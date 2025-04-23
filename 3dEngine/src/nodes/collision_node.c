@@ -1,8 +1,9 @@
 #include "collision_node.h"
+#include "spatial_node.h"
 #include <float.h>
 
 
-ColliderNode* ColliderNodeCreate(const char* name, vec3 min, vec3 max, bool isTrigger)
+ColliderNode* ColliderNodeCreate(const char* name, vec3 min, vec3 max, bool isTrigger, bool isStatic)
 {
   ColliderNode* node = calloc(1, sizeof(ColliderNode));
   strcpy_s(node->base.base.name, sizeof(node->base.base.name), name);
@@ -14,6 +15,7 @@ ColliderNode* ColliderNodeCreate(const char* name, vec3 min, vec3 max, bool isTr
   glm_vec3_copy(min, node->min);
   glm_vec3_copy(max, node->max);
   node->isTrigger = isTrigger;
+  node->isStatic = isStatic;
   return node;
 }
 ColliderNode* ColliderNodeCreateDefault(const char* name)
@@ -28,6 +30,7 @@ ColliderNode* ColliderNodeCreateDefault(const char* name)
   glm_vec3_fill(node->min, -1);
   glm_vec3_fill(node->max, 1);
   node->isTrigger = false;
+  node->isStatic = true;
   return node;
 }
 void ColliderNodeGetWorldAABB(const ColliderNode* collider, vec3 outMin, vec3 outMax)
@@ -72,6 +75,39 @@ bool ColliderNodeCheckCollision(const ColliderNode* a, const ColliderNode* b)
          (aMin[2] <= bMax[2] && aMax[2] >= bMin[2]);
 }
 
+void ColliderNodeHandleStateChange(ColliderNode* a, ColliderNode* b, bool state)
+{
+  a->isColliding = state;
+  b->isColliding = state;
+}
+void ColliderNodeResolveCollision(ColliderNode* a, ColliderNode*b)
+{
+  vec3 aMin, aMax, bMin, bMax;
+  ColliderNodeGetWorldAABB(a, aMin, aMax);
+  ColliderNodeGetWorldAABB(b, bMin, bMax);
+  vec3 overlap = 
+    {
+      fminf(aMax[0], bMax[0]) - fmaxf(aMin[0], bMin[0]),
+      fminf(aMax[1], bMax[1]) - fmaxf(aMin[1], bMin[1]),
+      fminf(aMax[2], bMax[2]) - fmaxf(aMin[2], bMin[2])
+    };
+  int axis = 0;
+  if(overlap[1] < overlap[axis]) axis = 1;
+  if(overlap[2] < overlap[axis]) axis = 2;
+
+  float dir = (a->base.transform.position[axis] < b->base.transform.position[axis]) ? -1.0f : 1.0f;
+
+  if(!a->isStatic)
+  {
+   a->base.transform.position[axis] += overlap[axis] * dir * 0.5f; 
+  }
+  if(!b->isStatic)
+  {
+   b->base.transform.position[axis] -= overlap[axis] * dir * 0.5f; 
+  }
+  SpatialNodeUpdateGlobalTransform((SpatialNode*) a);
+  SpatialNodeUpdateGlobalTransform((SpatialNode*) b);
+}
 void ColliderNodeToJSON(const ColliderNode* node, cJSON* root)
 {
   SpatialNodeToJSON((const SpatialNode*)node, root);
@@ -85,6 +121,7 @@ void ColliderNodeToJSON(const ColliderNode* node, cJSON* root)
   cJSON_AddItemToObject(root, "minAABB", min);
   cJSON_AddItemToObject(root, "maxAABB", max);
   cJSON_AddBoolToObject(root, "isTrigger", node->isTrigger);
+  cJSON_AddBoolToObject(root, "isStatic", node->isStatic);
 }
 ColliderNode* ColliderNodeFromJSON(const cJSON* json)
 {
@@ -99,7 +136,8 @@ ColliderNode* ColliderNodeFromJSON(const cJSON* json)
    max[i] = (float)cJSON_GetArrayItem(maxAABB, i)->valuedouble; 
   }
   bool isTrigger = cJSON_IsTrue(cJSON_GetObjectItem(json, "isTrigger"));
-  ColliderNode* node = ColliderNodeCreate(name, min, max, isTrigger);
+  bool isStatic = cJSON_IsTrue(cJSON_GetObjectItem(json, "isStatic"));
+  ColliderNode* node = ColliderNodeCreate(name, min, max, isTrigger, isStatic);
   return node;
 }
 
@@ -110,4 +148,15 @@ void ColliderNodeFree(ColliderNode* node)
     printf("CollisionNodeFree: node isn't valid\n");
   }
   free(node);
+}
+bool CheckSphereCollision(vec3 sphereCenter, float sphereRadius, vec3 boxMin, vec3 boxMax) 
+{
+    vec3 closestPoint;
+    closestPoint[0] = fmaxf(boxMin[0], fminf(sphereCenter[0], boxMax[0]));
+    closestPoint[1] = fmaxf(boxMin[1], fminf(sphereCenter[1], boxMax[1]));
+    closestPoint[2] = fmaxf(boxMin[2], fminf(sphereCenter[2], boxMax[2]));
+    
+    float distance = glm_vec3_distance(sphereCenter, closestPoint);
+    
+    return distance < sphereRadius;
 }

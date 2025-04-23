@@ -25,8 +25,12 @@ void SceneDemoSetup(Scene* scene);
 
 void SceneUpdate(Scene* scene, float delta);
 void SceneRender(Scene* scene, shaderStruct* modelShader);
+void ScenePhysicsUpdateCollisions(Scene* scene);
 
+void IsPlayerGrounded(PlayerNode* player, Scene* scene, float checkDistance); 
+bool CheckSphereCollisionWithScene(vec3 sphereCenter, float sphereRadius, Scene* scene);
 void SceneSetupRenderQueue(Scene* scene);
+dynlist_t* SceneFindAllNodesOfType(Scene* scene, NodeType type);
 
 void SceneSave(const Scene* scene, const char* path);
 Scene* SceneLoad(const char* path);

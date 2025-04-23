@@ -30,12 +30,17 @@ void SpatialNodeUpdateGlobalTransform(SpatialNode* node)
   glm_translate(node->globalTransformMatrix, node->transform.position);
   glm_scale(node->globalTransformMatrix, node->transform.scale);
   glm_mat4_mul(node->globalTransformMatrix, rotMat, node->globalTransformMatrix);
-  if(node->base.parent && node->base.parent->type == NODE_SPATIAL)
+  if(node->base.parent && NodeHasTransform(node->base.parent))
   {
     SpatialNode* parent = (SpatialNode*)node->base.parent;
     mat4 parentMatr;
     glm_mat4_copy(parent->globalTransformMatrix, parentMatr);
     glm_mat4_mul(parentMatr, node->globalTransformMatrix, node->globalTransformMatrix);
+  }
+  for(int i = 0; i < node->base.children->size; i++)
+  {
+    SpatialNode* child = (SpatialNode*)*(Node**)dynlistAt(node->base.children, i);
+    SpatialNodeUpdateGlobalTransform(child);
   }
 }
 

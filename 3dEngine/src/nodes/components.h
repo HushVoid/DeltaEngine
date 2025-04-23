@@ -20,6 +20,7 @@ typedef struct
 void TransformDefaultInit(Transform *t);
 
 void TransformGetForward(const Transform* t, vec3 dest);
+void TransformGetForwardNoPitch(const Transform* t, vec3 dest);
 void TransformGetRightVec(const Transform *t, vec3 worldUp, vec3 dest);
 
 cJSON* TransformToJSON(const Transform* t);

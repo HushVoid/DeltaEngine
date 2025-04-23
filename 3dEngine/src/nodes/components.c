@@ -19,6 +19,17 @@ void TransformGetForward(const Transform* t, vec3 dest)
   glm_vec3_normalize(forward);
   glm_vec3_copy(forward, dest);
 }
+void TransformGetForwardNoPitch(const Transform* t, vec3 dest)
+{
+  float yaw = DEG2RAD(t->rotation[1]);
+  vec3 forward = {
+    -sinf(yaw),
+    0,
+    -cosf(yaw) 
+  };
+  glm_vec3_normalize(forward);
+  glm_vec3_copy(forward, dest);
+}
 void TransformGetRightVec(const Transform *t,vec3 worldUp, vec3 dest)
 {
   vec3 right;
