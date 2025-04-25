@@ -30,7 +30,7 @@ DirectionalLightNode* DLightCreate(const char* name, float intencity, vec3 direc
   glm_vec3_fill(node->light.color, 1);
   return node;  
 }
-PointLightNode* PLightCreate(const char* name, float intencity, float radius)
+PointLightNode* PLightCreate(const char* name, float intencity, float radius, int id)
 {
   PointLightNode* node = calloc(1, sizeof(PointLightNode));
   strcpy_s(node->base.base.name, sizeof(node->base.base.name), name);
@@ -41,11 +41,12 @@ PointLightNode* PLightCreate(const char* name, float intencity, float radius)
   glm_mat4_identity(node->base.globalTransformMatrix);
   node->intencity = intencity;
   node->radius = radius;
+  node->id = id;
   PointLightCalc(node);
   glm_vec3_fill(node->light.color, 1);
   return node;
 }
-SpotLightNode* SLightCreate(const char* name, float intencity, vec3 direction)
+SpotLightNode* SLightCreate(const char* name, float intencity, vec3 direction, int id)
 {
   SpotLightNode* node = calloc(1, sizeof(SpotLightNode));
   strcpy_s(node->base.base.name, sizeof(node->base.base.name), name);
@@ -54,9 +55,10 @@ SpotLightNode* SLightCreate(const char* name, float intencity, vec3 direction)
   node->base.visible = true;
   TransformDefaultInit(&node->base.transform);
   glm_mat4_identity(node->base.globalTransformMatrix);
-  node->light.cutOff = DEG2RAD(25);   
-  node->light.outerCutOff = DEG2RAD(35);   
+  node->light.cutOff = 25;   
+  node->light.outerCutOff = 35;   
   node->intencity = intencity;
+  node->id = id;
   glm_vec3_copy(direction,node->light.direction);
   glm_vec3_fill(node->light.color, 1);
   return node;
@@ -99,8 +101,8 @@ SpotLightNode* SLightCreateDefault(const char* name)
   node->base.visible = true;
   TransformDefaultInit(&node->base.transform);
   glm_mat4_identity(node->base.globalTransformMatrix);
-  node->light.cutOff = DEG2RAD(25);   
-  node->light.outerCutOff = DEG2RAD(35);   
+  node->light.cutOff = 25;   
+  node->light.outerCutOff = 35;   
   node->intencity = 1.0;
   glm_vec3_copy((vec3){0, -1, 0},node->light.direction);
   glm_vec3_fill(node->light.color, 1);
@@ -131,6 +133,7 @@ void PLightToJSON(const PointLightNode* light, cJSON* root)
   cJSON_AddItemToObject(root, "color", colorp);
   cJSON_AddNumberToObject(root, "intencity", light->intencity);
   cJSON_AddNumberToObject(root, "radius", light->radius);
+  cJSON_AddNumberToObject(root, "lightID", light->id);
 }
 void SLightToJSON(const SpotLightNode* light, cJSON* root)
 {
@@ -147,6 +150,7 @@ void SLightToJSON(const SpotLightNode* light, cJSON* root)
   cJSON_AddNumberToObject(root, "intencity", light->intencity);
   cJSON_AddNumberToObject(root, "innerdeg", light->light.cutOff);
   cJSON_AddNumberToObject(root, "outerdeg", light->light.outerCutOff);
+  cJSON_AddNumberToObject(root, "lightID", light->id);
 }
 DirectionalLightNode* DLightFromJSON(const cJSON* json)
 {
@@ -182,7 +186,8 @@ PointLightNode* PLightFromJSON(const cJSON* json)
   char* name = cJSON_GetStringValue(cJSON_GetObjectItem(json,"name"));
   float intencity = (float)cJSON_GetNumberValue(cJSON_GetObjectItem(json,"intencity")); 
   float radius = (float)cJSON_GetNumberValue(cJSON_GetObjectItem(json, "radius"));
-  PointLightNode* node = PLightCreate(name, intencity, radius);
+  int id = (int)cJSON_GetNumberValue(cJSON_GetObjectItem(json, "lightID"));
+  PointLightNode* node = PLightCreate(name, intencity, radius, id);
   cJSON* transform = cJSON_GetObjectItem(json, "transform");
   if(transform)
   {
@@ -208,12 +213,13 @@ SpotLightNode* SLightFromJSON(const cJSON* json)
   float intencity = (float)cJSON_GetNumberValue(cJSON_GetObjectItem(json,"intencity"));
   float cutOff = (float)cJSON_GetNumberValue(cJSON_GetObjectItem(json,"innerdeg"));
   float outerCutOff = (float)cJSON_GetNumberValue(cJSON_GetObjectItem(json,"outerdeg"));
+  int id = (int)cJSON_GetNumberValue(cJSON_GetObjectItem(json, "lightID"));
   vec3 dir;
   cJSON* direction = cJSON_GetObjectItem(json,"direction");
   dir[0] = (float)cJSON_GetArrayItem(direction, 0)->valuedouble;
   dir[1] = (float)cJSON_GetArrayItem(direction, 1)->valuedouble;
   dir[2] = (float)cJSON_GetArrayItem(direction, 2)->valuedouble;
-  SpotLightNode* node = SLightCreate(name, intencity, dir);
+  SpotLightNode* node = SLightCreate(name, intencity, dir, id);
   cJSON* transform = cJSON_GetObjectItem(json, "transform");
   if(transform)
   {

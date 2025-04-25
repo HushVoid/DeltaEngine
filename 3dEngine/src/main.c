@@ -17,12 +17,7 @@ static struct
     bool isMouseLocked;
 } state;
 
-static struct
-{
-  unsigned int diffuseMap;
-  unsigned int specularMap;
-  float shininess;
-} material;
+
 bool isKeyDown(SDL_Scancode scanCode)
 {
   return state.keyboardStates[scanCode];
@@ -59,8 +54,7 @@ void mat3_to_mat4(mat3 src, mat4 dest)
 
 static ImVec4 clearColor = {0.1f, 0.1f, 0.1f, 1.0f};
 //static ImVec4 meshColor = { 1.0f, 1.0f, 1.0f, 1.0f};
-static float f = 0.0f;
-static PointLight pointLights[4];
+static GLuint lightUBO; 
 static shaderStruct modelshader;
 static shaderStruct skyboxShader;
 void Render(ImGuiIO* io, float time, unsigned int skyboxVAO, unsigned int cubemap)
@@ -69,17 +63,17 @@ void Render(ImGuiIO* io, float time, unsigned int skyboxVAO, unsigned int cubema
   cImGui_ImplOpenGL3_NewFrame();
   cImGui_ImplSDL2_NewFrame();
   ImGui_NewFrame();
-  DrawSceneHierarchy(state.loadedScene, &state.selected_node);
+  DrawSceneHierarchy(state.loadedScene, &state.selected_node, lightUBO);
   DrawSceneInspector(&state.loadedScene);
   if(state.selected_node)
   {
-    DrawNodeInspector(state.selected_node);
+    DrawNodeInspector(state.selected_node, state.loadedScene);
   }
   ImGui_Render();
   glViewport(0, 0,WIDTH , HEIGHT);
   glClearColor(clearColor.x * clearColor.w, clearColor.y * clearColor.w, clearColor.z * clearColor.w, clearColor.w);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  SceneRender(state.loadedScene, &modelshader);
+  SceneRender(state.loadedScene, lightUBO, &modelshader);
   glDepthFunc(GL_LEQUAL);
   UseShader(&skyboxShader);
   mat3 view3;
@@ -175,7 +169,17 @@ float skyboxVertices[] = {
   glGenBuffers(1,&VBO);
 
 
+  //Lights
+
   glBindBuffer(GL_ARRAY_BUFFER, VBO);
+
+  glGenBuffers(1, &lightUBO);
+  glBindBuffer(GL_UNIFORM_BUFFER, lightUBO);
+  glBufferData(GL_UNIFORM_BUFFER, 
+             sizeof(GPUDirLight) + sizeof(GPUPointLight)*4 + sizeof(GPUSpotLight)*4, 
+             NULL, GL_DYNAMIC_DRAW);
+  glBindBuffer(GL_UNIFORM_BUFFER, 0);
+  glBindBufferBase(GL_UNIFORM_BUFFER, 0, lightUBO);
 
   glBufferData(GL_ARRAY_BUFFER,sizeof(skyboxVertices), skyboxVertices, GL_STATIC_DRAW);
   printf("kaif\n");
@@ -208,7 +212,8 @@ float skyboxVertices[] = {
   CreateShader(&modelshader, "E:\\projects\\deltaengine\\3dengine\\shaders\\modelvertex.vs", "E:\\projects\\deltaengine\\3dengine\\shaders\\modelfragment.fs");
   CreateShader(&skyboxShader, "E:\\projects\\deltaengine\\3dengine\\shaders\\skybox.vs", "E:\\projects\\deltaengine\\3dengine\\shaders\\skybox.fs");
   
-  
+  GLuint lightsIndex = glGetUniformBlockIndex(modelshader.ID, "Lights");
+  glUniformBlockBinding(modelshader.ID, lightsIndex, 0);
 
 
   

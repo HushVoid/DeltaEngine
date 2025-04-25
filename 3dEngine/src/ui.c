@@ -1,4 +1,5 @@
 #include "ui.h"
+#include "gpu_light.h"
 #include "include/generated/dcimgui.h"
 #include "model.h"
 #include "nodes/camera_node.h"
@@ -18,7 +19,8 @@ void DrawSceneInspector(Scene** scene)
   ImGui_Begin("Scene inspector", NULL, ImGuiWindowFlags_None);
   static char path_buf[256];
   ImGui_InputText("Save/Load path", path_buf, sizeof(path_buf), ImGuiInputTextFlags_None);
-
+  ImGui_Text("Spot light count : %d", (*scene)->lights->spotLightsCount);
+  ImGui_Text("Point light count : %d", (*scene)->lights->pointLightsCount);
 
   static int screenSize[2];
   CameraNode* camera = (*scene)->activeCamera;
@@ -55,7 +57,7 @@ void DrawSceneInspector(Scene** scene)
   }      
   ImGui_End();
 }
-void DrawSceneHierarchy(Scene* scene, Node** forSelection)
+void DrawSceneHierarchy(Scene* scene, Node** forSelection, GLuint ubo)
 {
   ImGui_Begin("Scene hierarchy", NULL, ImGuiWindowFlags_None);
   DrawNodeTree(scene->root, forSelection);
@@ -76,17 +78,34 @@ void DrawSceneHierarchy(Scene* scene, Node** forSelection)
     if(ImGui_MenuItem("Create Directional light"))
     {
       DirectionalLightNode* newNode = DLightCreateDefault("Dir light");
+      scene->lights->dirLight = GPUDirLightCreate(newNode);
       NodeAddChild(scene->root, (Node*)newNode);
     }
     if(ImGui_MenuItem("Create Point light"))
     {
-      PointLightNode* newNode = PLightCreateDefault("Point light");
-      NodeAddChild(scene->root, (Node*)newNode);
+      if(scene->lights->pointLightsCount < MAX_POINT_LIGHTS)
+      {
+        PointLightNode* newNode = PLightCreateDefault("Point light");
+        newNode->id = scene->lights->nextLightid++;
+        scene->lights->pointLightsCount++;
+        scene->lights->lightsDirty = true;
+        GPUPointLight* light = GPUPointLightCreate(newNode);
+        dynlistPush(scene->lights->pointLights, &light);
+        NodeAddChild(scene->root, (Node*)newNode);
+      }
     }
     if(ImGui_MenuItem("Create Spot light"))
     {
-      SpotLightNode* newNode = SLightCreateDefault("Spot light");
-      NodeAddChild(scene->root, (Node*)newNode);
+      if(scene->lights->spotLightsCount < MAX_SPOT_LIGHTS)
+      {
+        SpotLightNode* newNode = SLightCreateDefault("Spot light");
+        newNode->id = scene->lights->nextLightid++;
+        scene->lights->spotLightsCount++;
+        GPUSpotLight* light = GPUSpotLightCreate(newNode);
+        dynlistPush(scene->lights->spotLights, &light);
+        NodeAddChild(scene->root, (Node*)newNode);
+        scene->lights->lightsDirty = true;
+      }
     }
     if(ImGui_MenuItem("Create Collider"))
     {
@@ -129,6 +148,25 @@ void DrawSceneHierarchy(Scene* scene, Node** forSelection)
       {
         Node* nodeDelete = *forSelection;
         Node* parent = nodeDelete->parent;
+        if(nodeDelete->type == NODE_LIGHTD)
+        {
+          SceneRemoveDLight(scene, ubo);
+          scene->lights->lightsDirty = true;
+        }
+        if(nodeDelete->type == NODE_LIGHTP)
+        {
+          PointLightNode* light = (PointLightNode*)nodeDelete;
+          int index = LightManagerFindLightByID(scene->lights, light->id, LIGHT_TYPE_POINT);
+          SceneRemovePLightIndex(scene, ubo, index);
+          scene->lights->lightsDirty = true;
+        }
+        if(nodeDelete->type == NODE_LIGHTS)
+        {
+          SpotLightNode* light = (SpotLightNode*)nodeDelete;
+          int index = LightManagerFindLightByID(scene->lights, light->id, LIGHT_TYPE_SPOT);
+        SceneRemoveSpotIndex(scene, ubo, index);
+          scene->lights->lightsDirty = true;
+        }
         if(parent)
         {
           NodeDeleteChild(parent, nodeDelete);
@@ -217,7 +255,7 @@ void DrawNodeTree(Node* node, Node** nodeSelected)
     ImGui_TreePop();
   }
 }
-void DrawNodeInspector(Node* node)
+void DrawNodeInspector(Node* node, Scene* scene)
 {
   ImGui_Begin("Inspector", NULL, ImGuiWindowFlags_AlwaysAutoResize);
   ImGui_Text("Editing: %s", node->name);
@@ -279,24 +317,32 @@ void DrawNodeInspector(Node* node)
       DirectionalLightNode* light = (DirectionalLightNode*) node;
       ImGui_DragFloat("Intencity", &light->intencity);  
       ImGui_ColorEdit3("Color", light->light.color, ImGuiColorEditFlags_None);  
-      ImGui_DragFloat3("Direction", light->light.direction);  
+      ImGui_DragFloat3("Direction", light->light.direction);
+      SceneUpdateGPUDLight(scene, light);
+      scene->lights->lightsDirty = true;
     }
     if(node->type == NODE_LIGHTP)
     {
       PointLightNode* light = (PointLightNode*) node;
+      ImGui_Text("Lights id: %d", light->id);
       ImGui_DragFloat("Intencity", &light->intencity);  
       ImGui_ColorEdit3("Color", light->light.color, ImGuiColorEditFlags_None);  
       ImGui_DragFloat("Radius", &light->radius);
-      PointLightCalc(light); 
+      PointLightCalc(light);
+      SceneUpdateGPUPLight(scene, light);
+      scene->lights->lightsDirty = true;
     }
     if(node->type == NODE_LIGHTS)
     {
       SpotLightNode* light = (SpotLightNode*) node;
+      ImGui_Text("Lights id: %d", light->id);
       ImGui_DragFloat("Intencity", &light->intencity);  
       ImGui_ColorEdit3("Color", light->light.color, ImGuiColorEditFlags_None);  
       ImGui_DragFloat3("Direction", light->light.direction);
       ImGui_DragFloat("Inner angle", &light->light.cutOff);  
       ImGui_DragFloat("Outer angle", &light->light.outerCutOff);  
+      SceneUpdateGPUSLight(scene, light);
+      scene->lights->lightsDirty = true;
     }
     if(node->type == NODE_PLAYER)
     {

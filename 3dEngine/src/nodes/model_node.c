@@ -62,7 +62,7 @@ void ModelNodeRender(ModelNode* node, shaderStruct* shader)
   glm_mat3_transpose(NormalMatrix);
   SetShaderMatrix4f(shader, "model", node->base.globalTransformMatrix);
   SetShaderMatrix3f(shader, "normalMatrix", NormalMatrix);
-  
+  SetShaderFloat(shader, "shininess", 64.0f); 
 
   DrawModel(&node->model, shader);
 }

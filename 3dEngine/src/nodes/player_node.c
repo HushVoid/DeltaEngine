@@ -1,4 +1,5 @@
 #include "player_node.h"
+#include "node.h"
 #include "spatial_node.h"
 
 
@@ -8,7 +9,7 @@ PlayerNode* PlayerNodeCreate(float jumpForce,float speed, const char* name, bool
   strcpy_s(node->base.base.name, sizeof(node->base.base.name), name);
   node->base.base.children = dynlistInit(sizeof(Node*), 4);
   node->base.visible = true;
-  node->base.base.type = NODE_MODEL;
+  node->base.base.type = NODE_PLAYER;
   TransformDefaultInit(&node->base.transform);
   glm_mat4_identity(node->base.globalTransformMatrix);
   node->speed = speed;
@@ -22,7 +23,7 @@ PlayerNode* PlayerNodeCreateDefault(const char* name)
   strcpy_s(node->base.base.name, sizeof(node->base.base.name), name);
   node->base.base.children = dynlistInit(sizeof(Node*), 4);
   node->base.visible = true;
-  node->base.base.type = NODE_MODEL;
+  node->base.base.type = NODE_PLAYER;
   TransformDefaultInit(&node->base.transform);
   glm_mat4_identity(node->base.globalTransformMatrix);
   node->speed = 30.0f;
