@@ -176,7 +176,7 @@ float skyboxVertices[] = {
   glGenBuffers(1, &lightUBO);
   glBindBuffer(GL_UNIFORM_BUFFER, lightUBO);
   glBufferData(GL_UNIFORM_BUFFER, 
-             sizeof(GPUDirLight) + sizeof(GPUPointLight)*4 + sizeof(GPUSpotLight)*4, 
+             sizeof(GPUDirLight) + sizeof(GPUPointLight)*10 + sizeof(GPUSpotLight)*10, 
              NULL, GL_DYNAMIC_DRAW);
   glBindBuffer(GL_UNIFORM_BUFFER, 0);
   glBindBufferBase(GL_UNIFORM_BUFFER, 0, lightUBO);

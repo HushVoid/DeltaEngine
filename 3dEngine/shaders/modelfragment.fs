@@ -72,7 +72,6 @@ void main()
     {
         if(spotLights[i].intensity > 0.0)
             result += CalcSpotLight(spotLights[i], norm, FragPos, viewDir);
-        result+= spotLights[i].color;
     }
     
     FragColor = vec4(result, 1.0);
