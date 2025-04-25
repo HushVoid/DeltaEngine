@@ -18,30 +18,37 @@ SpatialNode*   SpatialNodeCreate(const char* name)
 
 void SpatialNodeUpdateGlobalTransform(SpatialNode* node)
 {
-  glm_mat4_identity(node->globalTransformMatrix);
- 
-  mat4 rotMat;
-  vec3 eulerangles = {
-    DEG2RAD(node->transform.rotation[0]),
-    DEG2RAD(node->transform.rotation[1]),
-    DEG2RAD(node->transform.rotation[2])
-  };
-  glm_euler_yxz(eulerangles, rotMat);
-  glm_translate(node->globalTransformMatrix, node->transform.position);
-  glm_scale(node->globalTransformMatrix, node->transform.scale);
-  glm_mat4_mul(node->globalTransformMatrix, rotMat, node->globalTransformMatrix);
-  if(node->base.parent && NodeHasTransform(node->base.parent))
-  {
-    SpatialNode* parent = (SpatialNode*)node->base.parent;
-    mat4 parentMatr;
-    glm_mat4_copy(parent->globalTransformMatrix, parentMatr);
-    glm_mat4_mul(parentMatr, node->globalTransformMatrix, node->globalTransformMatrix);
-  }
-  for(int i = 0; i < node->base.children->size; i++)
-  {
-    SpatialNode* child = (SpatialNode*)*(Node**)dynlistAt(node->base.children, i);
-    SpatialNodeUpdateGlobalTransform(child);
-  }
+    mat4 localTransform;
+    glm_mat4_identity(localTransform);
+
+    vec3 eulerAngles = 
+    {
+        DEG2RAD(node->transform.rotation[0]),
+        DEG2RAD(node->transform.rotation[1]),
+        DEG2RAD(node->transform.rotation[2])
+    };
+    
+    mat4 rotMat;
+    glm_translate(localTransform, node->transform.position);
+    glm_euler_yxz(eulerAngles, rotMat);      
+    glm_scale(localTransform, node->transform.scale);    
+    glm_mat4_mul(localTransform, rotMat, localTransform); 
+    if (node->base.parent && NodeHasTransform(node->base.parent))
+    {
+        SpatialNode* parent = (SpatialNode*)node->base.parent;
+        glm_mat4_mul(parent->globalTransformMatrix, localTransform, node->globalTransformMatrix);
+    } else {
+        glm_mat4_copy(localTransform, node->globalTransformMatrix);
+    }
+
+}
+void SpatialGetGlobalPos(SpatialNode* node, vec3 dest)
+{
+  vec3 globalPos;
+  globalPos[0] = node->globalTransformMatrix[3][0];
+  globalPos[1] = node->globalTransformMatrix[3][1];
+  globalPos[2] = node->globalTransformMatrix[3][2];
+  glm_vec3_copy(globalPos, dest);
 }
 
 void  SpatialNodeSetPos(SpatialNode* node, vec3 position)

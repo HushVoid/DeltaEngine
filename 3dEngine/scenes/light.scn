@@ -1,0 +1,123 @@
+{
+	"type":	"base",
+	"name":	"root",
+	"enabled":	true,
+	"children":	[{
+			"type":	"camera",
+			"name":	"MAINCAM",
+			"enabled":	false,
+			"transform":	{
+				"position":	[5.0299625396728516, 11.6447114944458, 4.21112823486328],
+				"rotation":	[-53.1999397277832, 57.1992530822754, 0],
+				"scale":	[1, 1, 1]
+			},
+			"visible":	true,
+			"fov":	60,
+			"nearplane":	0.125,
+			"farplane":	100,
+			"aspect":	1.7777777910232544
+		}, {
+			"type":	"model",
+			"name":	"cube",
+			"enabled":	false,
+			"transform":	{
+				"position":	[0, 0, 3],
+				"rotation":	[0, 0, 0],
+				"scale":	[1, 1, 1]
+			},
+			"visible":	true,
+			"shapetype":	"Mdl_cube",
+			"modelpath":	"E:\\projects\\deltaengine\\3dengine\\resources\\models\\Cube\\Cube.obj"
+		}, {
+			"type":	"model",
+			"name":	"cylinder",
+			"enabled":	false,
+			"transform":	{
+				"position":	[-3, 0, 0],
+				"rotation":	[0, 0, 0],
+				"scale":	[1, 1, 1]
+			},
+			"visible":	true,
+			"shapetype":	"Mdl_cylinder",
+			"modelpath":	"E:\\projects\\deltaengine\\3dengine\\resources\\models\\Cylinder\\Cylinder.obj"
+		}, {
+			"type":	"model",
+			"name":	"capsule",
+			"enabled":	false,
+			"transform":	{
+				"position":	[0, 0, 0],
+				"rotation":	[0, 0, 0],
+				"scale":	[1, 1, 1]
+			},
+			"visible":	true,
+			"shapetype":	"Mdl_capsule",
+			"modelpath":	"E:\\projects\\deltaengine\\3dengine\\resources\\models\\Capsule\\Capsule.obj"
+		}, {
+			"type":	"model",
+			"name":	"backpack",
+			"enabled":	false,
+			"transform":	{
+				"position":	[0, 0, -3],
+				"rotation":	[0, 0, 0],
+				"scale":	[1, 1, 1]
+			},
+			"visible":	true,
+			"shapetype":	"Mdl_custom",
+			"modelpath":	"E:\\projects\\deltaengine\\3dengine\\resources\\models\\backpack\\backpack.obj"
+		}, {
+			"type":	"lightd",
+			"name":	"Dir light",
+			"enabled":	false,
+			"transform":	{
+				"position":	[0, 0, 0],
+				"rotation":	[0, 0, 0],
+				"scale":	[1, 1, 1]
+			},
+			"visible":	true,
+			"color":	[0.39225298166275024, 0.42425140738487244, 0.754901945590973],
+			"direction":	[-0.449999988079071, -0.449999988079071, 0],
+			"intencity":	1
+		}, {
+			"type":	"lightp",
+			"name":	"Point light",
+			"enabled":	false,
+			"transform":	{
+				"position":	[-6, 7, 0],
+				"rotation":	[0, 0, 0],
+				"scale":	[1, 1, 1]
+			},
+			"visible":	true,
+			"color":	{
+				"":	0.019896212965250015,
+				"":	0.67647057771682739,
+				"":	0
+			},
+			"intencity":	1,
+			"radius":	122,
+			"lightID":	0
+		}, {
+			"type":	"lights",
+			"name":	"Spot light",
+			"enabled":	false,
+			"transform":	{
+				"position":	[7, 6, 0],
+				"rotation":	[0, 0, 0],
+				"scale":	[1, 1, 1]
+			},
+			"visible":	true,
+			"color":	{
+				"":	0.877451002597809,
+				"":	0.1763504296541214,
+				"":	0.1763504296541214
+			},
+			"direction":	{
+				"":	-1,
+				"":	-1,
+				"":	0
+			},
+			"intencity":	1,
+			"innerdeg":	25,
+			"outerdeg":	36,
+			"lightID":	1
+		}]
+}

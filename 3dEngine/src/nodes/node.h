@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include "../include/cglm/cglm.h"
 #include "../include/cJSON/cJSON.h"
+#include "../shader.h"
  
 typedef enum 
 {
@@ -27,6 +28,7 @@ typedef struct Node
   struct Node* parent;
   dynlist_t* children; // dynlist<Node*>;
   bool enabled;
+  bool isSelected;
 } Node;
 
 
@@ -38,15 +40,17 @@ Node* NodeFindChild(Node* node, const char* name, bool recursive);
 unsigned int NodeFindChildIndex(Node* node, const char* name, bool recursive); 
 void NodeAddChild(Node* parent, Node* child);
 
+void NodeDrawEditor(Node* node, shaderStruct* shader, unsigned int texture, GLuint vao);
+
 void NodeDeleteChild(Node* parent, Node* child); //By pointer
 void NodeDeleteChild_Index(Node* parent, unsigned int index); //By index
 void NodeReparent(Node* node, Node* newParent);
-bool NodeCanHaveChilder(Node* node);
+bool NodeCanHaveChildren(Node* node);
 bool NodeHasTransform(Node* node);
 //(De)Serialisation
 const char* NodeT2Str(NodeType type);
 NodeType Str2NodeT(const char* type);
 char* NodeToJSON(const Node* node);
-Node* NodeFromJSON(const cJSON* json);
+Node* NodeFromJSON(const cJSON* json, dynlist_t* renderQueue);
 
 #endif // !NODE_H

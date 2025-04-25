@@ -1,0 +1,139 @@
+{
+	"type":	"base",
+	"name":	"root",
+	"enabled":	true,
+	"children":	[{
+			"type":	"camera",
+			"name":	"MAINCAM",
+			"enabled":	false,
+			"transform":	{
+				"position":	[-11.077442169189453, 9.74466896057129, -10.158303260803223],
+				"rotation":	[-37.400230407714844, 1288.4556884765625, 0],
+				"scale":	[1, 1, 1]
+			},
+			"visible":	true,
+			"fov":	60,
+			"nearplane":	0.125,
+			"farplane":	100,
+			"aspect":	1.7777777910232544
+		}, {
+			"type":	"lightp",
+			"name":	"Point light",
+			"enabled":	false,
+			"transform":	{
+				"position":	[-7, 4, 0],
+				"rotation":	[0, 0, 0],
+				"scale":	[1, 1, 1]
+			},
+			"visible":	true,
+			"color":	{
+				"":	0.78921568393707275,
+				"":	0.069636695086956024,
+				"":	0.17545722424983978
+			},
+			"intencity":	1,
+			"radius":	20,
+			"lightID":	1
+		}, {
+			"type":	"spatial",
+			"name":	"New spatial",
+			"enabled":	false,
+			"transform":	{
+				"position":	[-3, -2, 0],
+				"rotation":	[-36, -103, 103],
+				"scale":	[1, 1, 1]
+			},
+			"visible":	true,
+			"children":	[{
+					"type":	"lights",
+					"name":	"Spot light",
+					"enabled":	false,
+					"transform":	{
+						"position":	[0, 37, 0],
+						"rotation":	[0, 0, 0],
+						"scale":	[1, 1, 1]
+					},
+					"visible":	true,
+					"color":	{
+						"":	0.33823531866073608,
+						"":	0.33823531866073608,
+						"":	0.33823531866073608
+					},
+					"direction":	{
+						"":	0,
+						"":	-1,
+						"":	0
+					},
+					"intencity":	1,
+					"innerdeg":	25,
+					"outerdeg":	35,
+					"lightID":	2
+				}, {
+					"type":	"model",
+					"name":	"backpack",
+					"enabled":	false,
+					"transform":	{
+						"position":	[0, 0, -3],
+						"rotation":	[0, 0, 0],
+						"scale":	[1, 1, 1]
+					},
+					"visible":	true,
+					"shapetype":	"Mdl_custom",
+					"modelpath":	"E:\\projects\\deltaengine\\3dengine\\resources\\models\\backpack\\backpack.obj"
+				}, {
+					"type":	"model",
+					"name":	"capsule",
+					"enabled":	false,
+					"transform":	{
+						"position":	[0, 0, 0],
+						"rotation":	[0, 0, 0],
+						"scale":	[1, 1, 1]
+					},
+					"visible":	true,
+					"shapetype":	"Mdl_capsule",
+					"modelpath":	"E:\\projects\\deltaengine\\3dengine\\resources\\models\\Capsule\\Capsule.obj"
+				}, {
+					"type":	"model",
+					"name":	"cylinder",
+					"enabled":	false,
+					"transform":	{
+						"position":	[6, 4, 0],
+						"rotation":	[0, 0, 0],
+						"scale":	[1, 1, 1]
+					},
+					"visible":	true,
+					"shapetype":	"Mdl_cylinder",
+					"modelpath":	"E:\\projects\\deltaengine\\3dengine\\resources\\models\\Cylinder\\Cylinder.obj"
+				}, {
+					"type":	"model",
+					"name":	"cube",
+					"enabled":	false,
+					"transform":	{
+						"position":	[0, 0, 3],
+						"rotation":	[0, 0, 0],
+						"scale":	[1, 1, 1]
+					},
+					"visible":	true,
+					"shapetype":	"Mdl_cube",
+					"modelpath":	"E:\\projects\\deltaengine\\3dengine\\resources\\models\\Cube\\Cube.obj"
+				}, {
+					"type":	"lightp",
+					"name":	"Point light",
+					"enabled":	false,
+					"transform":	{
+						"position":	[-7, 4, 0],
+						"rotation":	[0, 0, 0],
+						"scale":	[1, 1, 1]
+					},
+					"visible":	true,
+					"color":	{
+						"":	0.78921568393707275,
+						"":	0.069636695086956024,
+						"":	0.17545722424983978
+					},
+					"intencity":	1,
+					"radius":	20,
+					"lightID":	1
+				}]
+		}]
+}

@@ -19,8 +19,7 @@ void DrawSceneInspector(Scene** scene)
   ImGui_Begin("Scene inspector", NULL, ImGuiWindowFlags_None);
   static char path_buf[256];
   ImGui_InputText("Save/Load path", path_buf, sizeof(path_buf), ImGuiInputTextFlags_None);
-  ImGui_Text("Spot light count : %d", (*scene)->lights->spotLightsCount);
-  ImGui_Text("Point light count : %d", (*scene)->lights->pointLightsCount);
+  ImGui_Checkbox("Scene enable light", &(*scene)->enableLights);
 
   static int screenSize[2];
   CameraNode* camera = (*scene)->activeCamera;
@@ -53,6 +52,7 @@ void DrawSceneInspector(Scene** scene)
         *scene = newScene;
         SceneDestroy(oldScene);
       }
+      ImGui_Text("Scene loaded successfully at path %s", path_buf);
     }
   }      
   ImGui_End();
@@ -70,9 +70,14 @@ void DrawSceneHierarchy(Scene* scene, Node** forSelection, GLuint ubo)
       Node* newNode = NodeCreate("New node");
       NodeAddChild(scene->root, newNode);
     }
-    if(ImGui_MenuItem("Create spatial"))
+    if(ImGui_MenuItem("Create Spatial"))
     {
       SpatialNode* newNode = SpatialNodeCreate("New spatial");
+      NodeAddChild(scene->root, (Node*)newNode);
+    }
+    if(ImGui_MenuItem("Create Camera"))
+    {
+      CameraNode* newNode = CameraNodeCreateDefault("Camera");
       NodeAddChild(scene->root, (Node*)newNode);
     }
     if(ImGui_MenuItem("Create Directional light"))
@@ -101,10 +106,10 @@ void DrawSceneHierarchy(Scene* scene, Node** forSelection, GLuint ubo)
         SpotLightNode* newNode = SLightCreateDefault("Spot light");
         newNode->id = scene->lights->nextLightid++;
         scene->lights->spotLightsCount++;
+        scene->lights->lightsDirty = true;
         GPUSpotLight* light = GPUSpotLightCreate(newNode);
         dynlistPush(scene->lights->spotLights, &light);
         NodeAddChild(scene->root, (Node*)newNode);
-        scene->lights->lightsDirty = true;
       }
     }
     if(ImGui_MenuItem("Create Collider"))
@@ -144,7 +149,7 @@ void DrawSceneHierarchy(Scene* scene, Node** forSelection, GLuint ubo)
     }
     if(ImGui_MenuItem("DeleteNode"))
     {
-      if(*forSelection)
+      if(*forSelection && *forSelection != scene->root)
       {
         Node* nodeDelete = *forSelection;
         Node* parent = nodeDelete->parent;
@@ -164,7 +169,7 @@ void DrawSceneHierarchy(Scene* scene, Node** forSelection, GLuint ubo)
         {
           SpotLightNode* light = (SpotLightNode*)nodeDelete;
           int index = LightManagerFindLightByID(scene->lights, light->id, LIGHT_TYPE_SPOT);
-        SceneRemoveSpotIndex(scene, ubo, index);
+          SceneRemoveSpotIndex(scene, ubo, index);
           scene->lights->lightsDirty = true;
         }
         if(parent)
@@ -218,8 +223,13 @@ void DrawNodeTree(Node* node, Node** nodeSelected)
   bool isOpen = ImGui_TreeNodeExPtr(node, flags, "%s (%s)", node->name, NodeT2Str(node->type));
   if(ImGui_IsItemClicked())
   {
-    *nodeSelected = node; 
-  }
+    if(*nodeSelected)
+    {
+      (*nodeSelected)->isSelected = false;
+    }
+    *nodeSelected = node;
+    (*nodeSelected)->isSelected = true;
+  } 
 
   if(ImGui_BeginDragDropSource(ImGuiDragDropFlags_None))
   {
@@ -233,7 +243,7 @@ void DrawNodeTree(Node* node, Node** nodeSelected)
     if((payload = ImGui_AcceptDragDropPayload("NODE_HIERARCHY", ImGuiDragDropFlags_None)))
     {
       Node* draggedNode = *(Node**)payload->Data;
-      if(draggedNode != node)
+      if(draggedNode != node && NodeCanHaveChildren(node))
       {
         NodeReparent(draggedNode, node);
       }
@@ -257,6 +267,10 @@ void DrawNodeTree(Node* node, Node** nodeSelected)
 }
 void DrawNodeInspector(Node* node, Scene* scene)
 {
+  if(!node || !scene)
+  {
+    return;
+  }
   ImGui_Begin("Inspector", NULL, ImGuiWindowFlags_AlwaysAutoResize);
   ImGui_Text("Editing: %s", node->name);
 
@@ -329,7 +343,6 @@ void DrawNodeInspector(Node* node, Scene* scene)
       ImGui_ColorEdit3("Color", light->light.color, ImGuiColorEditFlags_None);  
       ImGui_DragFloat("Radius", &light->radius);
       PointLightCalc(light);
-      SceneUpdateGPUPLight(scene, light);
       scene->lights->lightsDirty = true;
     }
     if(node->type == NODE_LIGHTS)
@@ -341,7 +354,6 @@ void DrawNodeInspector(Node* node, Scene* scene)
       ImGui_DragFloat3("Direction", light->light.direction);
       ImGui_DragFloat("Inner angle", &light->light.cutOff);  
       ImGui_DragFloat("Outer angle", &light->light.outerCutOff);  
-      SceneUpdateGPUSLight(scene, light);
       scene->lights->lightsDirty = true;
     }
     if(node->type == NODE_PLAYER)

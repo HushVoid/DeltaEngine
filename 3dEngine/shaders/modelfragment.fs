@@ -49,6 +49,7 @@ layout (std140) uniform Lights {
 uniform vec3 viewPos;
 uniform int activePointLights;
 uniform int activeSpotLights;
+uniform bool lightEnabled;
 
 vec3 CalcDirLight(DirLight light, vec3 normal, vec3 viewDir);
 vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir);
@@ -56,6 +57,8 @@ vec3 CalcSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir);
 
 void main()
 {
+  if(lightEnabled)
+  {
     vec3 norm = normalize(Normal);
     vec3 viewDir = normalize(viewPos - FragPos);
     
@@ -75,6 +78,12 @@ void main()
     }
     
     FragColor = vec4(result, 1.0);
+    
+  }
+  else
+  {
+    FragColor = texture(texture_diffuse1, TexCoords);
+  }
 }
 
 vec3 CalcDirLight(DirLight light, vec3 normal, vec3 viewDir)

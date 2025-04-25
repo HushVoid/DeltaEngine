@@ -5,11 +5,15 @@
 #include "nodes/light_node.h"
 #include "nodes/node.h"
 #include "shader.h"
+#include <string.h>
+#include <windows.h>
+#include "include/STBI/stb_image.h"
 
 Scene* SceneCreate(bool isLoaded)
 {
   Scene* scene = calloc(1, sizeof(Scene));
   scene->lights = SceneCreateLightManager();
+  SceneInitBillboardG(scene);
   if(!isLoaded) 
   {
     scene->root = NodeCreate("root");
@@ -25,6 +29,72 @@ Scene* SceneCreate(bool isLoaded)
   return scene;
 }
 
+void SceneInitBillboardG(Scene* scene)
+{
+  if (!scene) {
+      printf("Error: Scene is NULL in SceneInitBillboardG\n");
+      return;
+  }
+  char execpath[MAX_PATH];
+  if(GetModuleFileName(NULL,execpath, MAX_PATH) != 0)
+  {
+    char* lastSlash = strrchr(execpath, '\\');
+    if(lastSlash != NULL) *lastSlash = '\0';        
+  }
+  float billboardVertices[] = {
+      // positions   // texCoords
+      -0.5f, -0.5f,  0.0f, 0.0f,
+       0.5f, -0.5f,  1.0f, 0.0f,
+       0.5f,  0.5f,  1.0f, 1.0f,
+      -0.5f,  0.5f,  0.0f, 1.0f
+  };
+
+  unsigned int billboardIndices[] = {
+      0, 1, 2,
+      2, 3, 0
+  };
+
+  glGenVertexArrays(1, &scene->billboard.VAO);
+  glGenBuffers(1, &scene->billboard.VBO);
+  glGenBuffers(1, &scene->billboard.EBO);
+
+  glBindVertexArray(scene->billboard.VAO);
+
+  glBindBuffer(GL_ARRAY_BUFFER, scene->billboard.VBO);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(billboardVertices), billboardVertices, GL_STATIC_DRAW);
+
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, scene->billboard.EBO);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(billboardIndices), billboardIndices, GL_STATIC_DRAW);
+
+  glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+  glEnableVertexAttribArray(0);
+  
+  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+  glEnableVertexAttribArray(1);
+
+  glBindVertexArray(0);
+
+
+  char loadPath[256];
+  strcpy_s(loadPath, sizeof(loadPath), execpath);
+  strcat_s(loadPath,sizeof(loadPath), "\\textures\\node.png");
+  int width, height, nrChannels;
+  unsigned char *data = stbi_load(loadPath, &width, &height, &nrChannels, 0); 
+  if (!data) 
+  {
+    printf("Failed to load texture: %s\n", loadPath);
+    return;
+  }
+  glGenTextures(1, &scene->billboard.texture);
+  glBindTexture(GL_TEXTURE_2D, scene->billboard.texture);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+  glGenerateMipmap(GL_TEXTURE_2D);
+
+}
 LightManager* SceneCreateLightManager()
 {
   LightManager* manager = calloc(1, sizeof(LightManager));
@@ -40,6 +110,9 @@ void SceneDestroy(Scene* scene)
 {
   NodeDestroy(scene->root);
   dynlistFree(scene->renderQueue);
+  dynlistFree(scene->lights->pointLights);
+  dynlistFree(scene->lights->spotLights);
+  free(scene->lights);
   free(scene);
 }
 
@@ -50,7 +123,6 @@ void SceneUpdateUBO(Scene* scene, GLuint ubo)
     printf("SceneUpdateUBO: Davay poka");
     return;
   }
-
   if(scene->lights->dirLight)
   {
     DirLight_UploadToUBO(ubo,scene->lights->dirLight);
@@ -129,22 +201,33 @@ void IsPlayerGrounded(PlayerNode* player, Scene* scene, float checkDistance)
         scene
     );
 }
-void SceneRender(Scene* scene, GLuint ubo, shaderStruct* modelShader)
-{
+void SceneRender(Scene* scene, GLuint ubo, shaderStruct* modelShader, shaderStruct* nodeShader)
+{  
+
+
   for(int i = 0; i < scene->renderQueue->size; i++)
   {
     Node* renderNode = *(Node**)dynlistAt(scene->renderQueue, i);
     if(renderNode->type == NODE_MODEL)
-      ModelNodeRender((ModelNode*)renderNode,modelShader);
-    UseShader(modelShader);
-    SetShaderFloat3(modelShader, "viewPos", scene->activeCamera->base.transform.position);
-    SetShaderInt(modelShader, "activePointLights", scene->lights->pointLightsCount);
-    SetShaderInt(modelShader, "activeSpotLights", scene->lights->spotLightsCount);
-    if(scene->lights->lightsDirty)
     {
-      SceneUpdateUBO(scene, ubo);
+      ModelNodeRender((ModelNode*)renderNode,modelShader);
+      UseShader(modelShader);
+      SetShaderBool(modelShader, "lightEnabled", scene->enableLights);
+      if(scene->enableLights)
+      {
+        SetShaderFloat3(modelShader, "viewPos", scene->activeCamera->base.transform.position);
+        SetShaderInt(modelShader, "activePointLights", scene->lights->pointLightsCount);
+        SetShaderInt(modelShader, "activeSpotLights", scene->lights->spotLightsCount);
+        if(scene->lights->lightsDirty)
+        {
+          SceneUpdateAllGPULights(scene);
+          SceneUpdateUBO(scene, ubo);
+        }
+      }
+      
     }
-  }
+  }  
+
 }
 
 //VERY memory leaky free the returned list please
@@ -238,32 +321,17 @@ Scene* SceneLoad(const char* path)
   }
   cJSON* json = cJSON_Parse(json_str);
   Scene* scene = SceneCreate(true);
-  scene->root = NodeFromJSON(json);
+  scene->root = NodeFromJSON(json, scene->renderQueue);
   scene->activeCamera = (CameraNode*)NodeFindChild(scene->root, "MAINCAM", false);
-  SceneSetupRenderQueue(scene);
   SceneGetAllLights(scene);
   LightManagerFindHigestLightID(scene->lights);
+  SceneInitBillboardG(scene);
+  scene->lights->lightsDirty = true;
   free(json_str);
   cJSON_Delete(json);
   return scene;
 }
-void SceneSetupRenderQueue(Scene* scene)
-{
- if(scene->root->children->size == 0)
-  {
-    printf("SceneSetupRenderQueue: root is empty");
-    return;
-  }
-  for(int i = 0; i < scene->root->children->size; i++)
-  {
-    Node* node = *(Node**)dynlistAt(scene->root->children, i);
-    if(node->type == NODE_MODEL)
-    {
-      dynlistPush(scene->renderQueue, &node);
-    }
-  }
-  
-}
+
 void SceneGetAllLights(Scene* scene)
 {
   DirectionalLightNode* dirL = (DirectionalLightNode*)SceneFindFirstNodeOfType(scene, NODE_LIGHTD); 
@@ -287,7 +355,7 @@ void SceneGetAllLights(Scene* scene)
     GPUSpotLight* shader_light = GPUSpotLightCreate(light);
     dynlistPush(scene->lights->spotLights, &shader_light);
   }
-  scene->lights->pointLightsCount = spotL->size;
+  scene->lights->spotLightsCount = spotL->size;
   dynlistFree(pointL);
   dynlistFree(spotL);
 }
@@ -305,12 +373,33 @@ void SceneRemoveSpotIndex(Scene* scene, GLuint ubo, int index)
   UpdateUBOAfterRemoval(scene, ubo, LIGHT_TYPE_SPOT, index);
   
 }
+
 void SceneRemoveDLight(Scene* scene, GLuint ubo)
 {
  free(scene->lights->dirLight); 
  scene->lights->dirLight = NULL;
  UpdateUBOAfterRemoval(scene, ubo, LIGHT_TYPE_DIR, 0);
 }
+
+void SceneUpdateAllGPULights(Scene* scene)
+{ 
+  dynlist_t* pointL = SceneFindAllNodesOfType(scene->root, NODE_LIGHTP, true);  
+  dynlist_t* spotL = SceneFindAllNodesOfType(scene->root, NODE_LIGHTS, true);
+  for(int i = 0; i < pointL->size; i++)
+  {
+    PointLightNode* light = (PointLightNode*)*(Node**)dynlistAt(pointL, i);
+    SceneUpdateGPUPLight(scene, light);
+  }
+  for(int i = 0; i < spotL->size; i++)
+  {
+    SpotLightNode* light = (SpotLightNode*)*(Node**)dynlistAt(spotL, i);
+    SceneUpdateGPUSLight(scene, light);
+  }
+  dynlistFree(pointL);
+  dynlistFree(spotL);
+  
+}
+
 void SceneUpdateGPUPLight(Scene* scene, PointLightNode* newLight)
 {
   int index = LightManagerFindLightByID(scene->lights, newLight->id, LIGHT_TYPE_POINT);
@@ -389,7 +478,6 @@ int LightManagerFindLightByID(LightManager* lm, int id, LightType type)
           break;
         }
       }
-      return index;
     case LIGHT_TYPE_POINT:
       for(int i = 0; i < lm->pointLights->size; i++)
       {
@@ -403,6 +491,7 @@ int LightManagerFindLightByID(LightManager* lm, int id, LightType type)
     case LIGHT_TYPE_DIR:
       return 0;
   }
+  return index;
 }
 
 void UpdateUBOAfterRemoval(Scene* scene, GLuint ubo, LightType type, int removedIndex) 

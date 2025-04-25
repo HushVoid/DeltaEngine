@@ -70,6 +70,57 @@ void NodeDestroy(Node* node)
       return;
   }
 }
+void NodeDrawEditor(Node* node, shaderStruct* shader, unsigned int texture, GLuint vao)
+{
+
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, texture);
+
+  glBindVertexArray(vao);
+
+  vec4 tint = {1.0f, 1.0f, 1.0f, 1.0f};
+  float iconSize = 0.5f;
+
+  switch(node->type)
+  {
+    case NODE_SPATIAL: glm_vec4_copy((vec4){1.0, 0.0, 0.0, 1.0f}, tint); break;
+    case NODE_CAMERA: glm_vec4_copy((vec4){0.0, 0.0, 1.0, 1.0f}, tint);  break;
+    case NODE_PLAYER: glm_vec4_copy((vec4){0.0, 1.0, 0.0, 1.0f}, tint);  break;
+    case NODE_MODEL: glm_vec4_copy((vec4){0.0, 1.0, 0.0, 1.0f}, tint);  break;
+    case NODE_COLLISION: glm_vec4_copy((vec4){1.0, 0.5, 0.0, 1.0f}, tint); break;
+    case NODE_LIGHTP: glm_vec4_copy((vec4){1.0, 0.2, 0.5, 1.0f}, tint);  break;
+    case NODE_LIGHTS: glm_vec4_copy((vec4){1.0, 0.5, 0.5, 1.0f}, tint);  break;
+    case NODE_LIGHTD: glm_vec4_copy((vec4){0.5, 1.0, 0.2, 1.0f}, tint);  break;
+    case NODE_BASE: break;
+  }
+  if(node->isSelected)
+  {
+    iconSize *=1.5;
+  }
+  else 
+  {
+    iconSize /=1.5;
+  }
+  if(NodeHasTransform(node))
+  {
+    SpatialNode* spatial =  (SpatialNode*)node;
+    vec3 globalPos;
+    SpatialGetGlobalPos(spatial, globalPos);
+    UseShader(shader);
+    SetShaderFloat3(shader, "position", globalPos);
+    SetShaderFloat(shader, "size", iconSize);
+    SetShaderFloat4(shader, "tintColor", tint);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+  }
+  
+  for(int i = 0; i < node->children->size; i++)
+  {
+    Node *child = *(Node**)dynlistAt(node->children, i);
+    NodeDrawEditor(child, shader, texture, vao);
+  }
+  glBindVertexArray(0);
+}
+
 
 bool NodeHasTransform(Node* node)
 {
@@ -163,7 +214,7 @@ unsigned int NodeFindChildIndex(Node* node, const char* name, bool recursive)
   return -1;
 }
 
-bool NodeCanHaveChilder(Node* node)
+bool NodeCanHaveChildren(Node* node)
 {
   return (node->type == NODE_MODEL ||
           node->type == NODE_SPATIAL ||
@@ -223,7 +274,7 @@ void NodeAddChild(Node* parent, Node* child)
     printf("nah twin she got you blushin twin aw hell naw that's not even u twin you gotta lock up twin foenem grave bruh aeee🥀");
     return;
   }
-  if(!NodeCanHaveChilder(parent))
+  if(!NodeCanHaveChildren(parent))
   {
     printf("NodeAddChild: node of type %d cannot have children\n", parent->type);
     return;
@@ -348,7 +399,7 @@ char* NodeToJSON(const Node* node)
 }
 
 
-Node* NodeFromJSON(const cJSON* json)
+Node* NodeFromJSON(const cJSON* json, dynlist_t* renderQueue)
 {
   const char* typeStr = cJSON_GetStringValue(cJSON_GetObjectItem(json,"type"));
   NodeType type = Str2NodeT(typeStr);
@@ -368,6 +419,7 @@ Node* NodeFromJSON(const cJSON* json)
     break;
     case NODE_MODEL:
     node = (Node*)ModelNodeFromJSON(json);
+    dynlistPush(renderQueue, &node);
     break;
     case NODE_LIGHTD:
     node = (Node*)DLightFromJSON(json);
@@ -389,7 +441,7 @@ Node* NodeFromJSON(const cJSON* json)
     cJSON* childJson;
     cJSON_ArrayForEach(childJson, children)
     {
-      Node* child = NodeFromJSON(childJson);
+      Node* child = NodeFromJSON(childJson, renderQueue);
       if(child)
         NodeAddChild(node, child);
     }

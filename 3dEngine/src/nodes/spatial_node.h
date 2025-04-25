@@ -19,6 +19,7 @@ void   SpatialNodeFree(SpatialNode* node);
 void   SpatialNodeSetPos(SpatialNode* node, vec3 position);
 void   SpatialNodeRotate(SpatialNode* node, vec3 axis, float radians);
 void   SpatialNodeUpdateGlobalTransform(SpatialNode* node);
+void   SpatialGetGlobalPos(SpatialNode* node, vec3 dest);
 
 void   SpatialNodeUpdate(SpatialNode* node, float delta);
 

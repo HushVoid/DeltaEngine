@@ -57,6 +57,7 @@ static ImVec4 clearColor = {0.1f, 0.1f, 0.1f, 1.0f};
 static GLuint lightUBO; 
 static shaderStruct modelshader;
 static shaderStruct skyboxShader;
+static shaderStruct nodeShader;
 void Render(ImGuiIO* io, float time, unsigned int skyboxVAO, unsigned int cubemap)
 { if(!state.loadedScene)
     return;
@@ -73,7 +74,7 @@ void Render(ImGuiIO* io, float time, unsigned int skyboxVAO, unsigned int cubema
   glViewport(0, 0,WIDTH , HEIGHT);
   glClearColor(clearColor.x * clearColor.w, clearColor.y * clearColor.w, clearColor.z * clearColor.w, clearColor.w);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  SceneRender(state.loadedScene, lightUBO, &modelshader);
+  SceneRender(state.loadedScene, lightUBO, &modelshader, &nodeShader);
   glDepthFunc(GL_LEQUAL);
   UseShader(&skyboxShader);
   mat3 view3;
@@ -86,6 +87,9 @@ void Render(ImGuiIO* io, float time, unsigned int skyboxVAO, unsigned int cubema
   glDrawArrays(GL_TRIANGLES, 0, 36);
   glBindVertexArray(0);
   glDepthFunc(GL_LESS); // set depth function back to default 
+  glDisable(GL_DEPTH_TEST);
+  NodeDrawEditor(state.loadedScene->root, &nodeShader, state.loadedScene->billboard.texture, state.loadedScene->billboard.VAO);
+  glEnable(GL_DEPTH_TEST);
   cImGui_ImplOpenGL3_RenderDrawData(ImGui_GetDrawData());
   SDL_GL_SwapWindow(state.window);
 }
@@ -211,6 +215,7 @@ float skyboxVertices[] = {
 
   CreateShader(&modelshader, "E:\\projects\\deltaengine\\3dengine\\shaders\\modelvertex.vs", "E:\\projects\\deltaengine\\3dengine\\shaders\\modelfragment.fs");
   CreateShader(&skyboxShader, "E:\\projects\\deltaengine\\3dengine\\shaders\\skybox.vs", "E:\\projects\\deltaengine\\3dengine\\shaders\\skybox.fs");
+  CreateShader(&nodeShader, "E:\\projects\\deltaengine\\3dengine\\shaders\\bilboard.vs", "E:\\projects\\deltaengine\\3dengine\\shaders\\bilboard.fs");
   
   GLuint lightsIndex = glGetUniformBlockIndex(modelshader.ID, "Lights");
   glUniformBlockBinding(modelshader.ID, lightsIndex, 0);
@@ -257,6 +262,10 @@ void Update(float deltaTime)
           CameraNodeHandleWASD(state.loadedScene->activeCamera, deltaTime, CAMERA_EDIT_LEFT);
         if(isKeyDown(SDL_SCANCODE_D))
           CameraNodeHandleWASD(state.loadedScene->activeCamera, deltaTime, CAMERA_EDIT_RIGHT);
+        if(isKeyDown(SDL_SCANCODE_LSHIFT))
+          state.loadedScene->activeCamera->speed = CAM_DEFAULT_SPEED * 3.5;
+        else
+          state.loadedScene->activeCamera->speed = CAM_DEFAULT_SPEED;
       }
     while(SDL_PollEvent(&state.event) != 0)
     {
@@ -296,6 +305,10 @@ void Update(float deltaTime)
   UseShader(&modelshader);
   SetShaderMatrix4f(&modelshader, "projection", state.loadedScene->activeCamera->projection);
   SetShaderMatrix4f(&modelshader,"view",state.loadedScene->activeCamera->view);
+  UseShader(&nodeShader);
+  SetShaderMatrix4f(&nodeShader, "view", state.loadedScene->activeCamera->view);
+  SetShaderMatrix4f(&nodeShader, "projection", state.loadedScene->activeCamera->projection);
+  SetShaderFloat3(&nodeShader, "viewPos", state.loadedScene->activeCamera->base.transform.position);
   SDL_SetRelativeMouseMode(state.isMouseLocked);
 }
 unsigned int LoadCubemap(dynlist_t* faces)
