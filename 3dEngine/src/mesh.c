@@ -51,7 +51,7 @@ void Draw(Mesh *mesh,shaderStruct *shader)
     glActiveTexture(GL_TEXTURE0 + i);
     char number[3];
     char name[30];
-    Texture* currtexture = dynlistAt(mesh->textures, i);
+    Texture* currtexture = (Texture*)dynlistAt(mesh->textures, i);
     strcpy_s(name, sizeof(name) , currtexture->type);
     if(strcmp(name, "texture_diffuse"))
       snprintf(number, sizeof(number), "%d", diffuseNr++);

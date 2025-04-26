@@ -13,9 +13,17 @@ static struct
     Scene* loadedScene;
     Node* selected_node;
     const Uint8 *keyboardStates;
-    bool IsGameRuning;
+    bool isGameRuning;
     bool isMouseLocked;
+    bool isPlayingModeOn;
 } state;
+static struct 
+{
+  CameraNode* playModeCamera;
+  PlayerNode* playModePlayer;
+  Transform playerTransform;
+  Transform cameraTransform;
+} playModeState;
 
 
 bool isKeyDown(SDL_Scancode scanCode)
@@ -23,7 +31,7 @@ bool isKeyDown(SDL_Scancode scanCode)
   return state.keyboardStates[scanCode];
 }
 
-void Update(float deltaTime);
+void Update(float deltaTime, ImGuiIO* io);
 unsigned int LoadCubemap(dynlist_t* faces);
 GLenum errorCheck (int checkNumber)
 {
@@ -61,36 +69,52 @@ static shaderStruct nodeShader;
 void Render(ImGuiIO* io, float time, unsigned int skyboxVAO, unsigned int cubemap)
 { if(!state.loadedScene)
     return;
-  cImGui_ImplOpenGL3_NewFrame();
-  cImGui_ImplSDL2_NewFrame();
-  ImGui_NewFrame();
-  DrawSceneHierarchy(state.loadedScene, &state.selected_node, lightUBO);
-  DrawSceneInspector(&state.loadedScene);
-  if(state.selected_node)
+  CameraNode* currentCamera = state.isPlayingModeOn ? playModeState.playModeCamera : state.loadedScene->activeCamera;
+  if(!state.isPlayingModeOn)
   {
-    DrawNodeInspector(state.selected_node, state.loadedScene);
+    cImGui_ImplOpenGL3_NewFrame();
+    cImGui_ImplSDL2_NewFrame();
+    ImGui_NewFrame();
+    DrawSceneHierarchy(state.loadedScene, &state.selected_node, lightUBO);
+    DrawSceneInspector(&state.loadedScene);
+    if(state.selected_node)
+    {
+      DrawNodeInspector(state.selected_node, state.loadedScene);
+    }
+    ImGui_Render();
   }
-  ImGui_Render();
   glViewport(0, 0,WIDTH , HEIGHT);
   glClearColor(clearColor.x * clearColor.w, clearColor.y * clearColor.w, clearColor.z * clearColor.w, clearColor.w);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  vec3 CamGlobalPos;
+  SpatialGetGlobalPos((SpatialNode*)currentCamera, CamGlobalPos);
+  SetShaderFloat3(&modelshader, "viewPos", CamGlobalPos);
   SceneRender(state.loadedScene, lightUBO, &modelshader, &nodeShader);
   glDepthFunc(GL_LEQUAL);
   UseShader(&skyboxShader);
   mat3 view3;
-  glm_mat4_pick3(state.loadedScene->activeCamera->view, view3);
-  mat3_to_mat4(view3,state.loadedScene->activeCamera->view);
-  SetShaderMatrix4f(&skyboxShader, "view", state.loadedScene->activeCamera->view);
+  glm_mat4_pick3(currentCamera->view, view3);
+  mat3_to_mat4(view3,currentCamera->view);
+  SetShaderMatrix4f(&skyboxShader, "view", currentCamera->view);
   glBindVertexArray(skyboxVAO);
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap);
   glDrawArrays(GL_TRIANGLES, 0, 36);
   glBindVertexArray(0);
-  glDepthFunc(GL_LESS); // set depth function back to default 
-  glDisable(GL_DEPTH_TEST);
-  NodeDrawEditor(state.loadedScene->root, &nodeShader, state.loadedScene->billboard.texture, state.loadedScene->billboard.VAO);
-  glEnable(GL_DEPTH_TEST);
-  cImGui_ImplOpenGL3_RenderDrawData(ImGui_GetDrawData());
+  glDepthFunc(GL_LESS); // set depth function back to default
+  if(!state.isPlayingModeOn)
+  {
+    glDisable(GL_DEPTH_TEST);
+    if(state.loadedScene->root)
+    {
+      NodeDrawEditor(state.loadedScene->root, &nodeShader, state.loadedScene->billboard.texture, state.loadedScene->billboard.VAO);
+    }
+    glEnable(GL_DEPTH_TEST);
+  }
+  if(!state.isPlayingModeOn)
+  {
+    cImGui_ImplOpenGL3_RenderDrawData(ImGui_GetDrawData());
+  }
   SDL_GL_SwapWindow(state.window);
 }
 
@@ -104,7 +128,10 @@ int main(int argc, char** argv)
 
   //Logic
   state.isMouseLocked = true;
-  state.IsGameRuning = true;
+  state.isGameRuning = true;
+  state.isPlayingModeOn = false;
+  playModeState.playModeCamera = NULL;
+  playModeState.playModePlayer = NULL;
 
 //OpenGL
   state.glContext = SDL_GL_CreateContext(state.window);
@@ -122,8 +149,7 @@ int main(int argc, char** argv)
 //stbi
   stbi_set_flip_vertically_on_load(true); 
 
-  state.loadedScene = SceneCreate(false);
-  SceneDemoSetup(state.loadedScene); 
+  state.loadedScene = SceneLoad("scenes\\test.scn");
 unsigned int VBO; 
 
 float skyboxVertices[] = {
@@ -220,17 +246,16 @@ float skyboxVertices[] = {
   GLuint lightsIndex = glGetUniformBlockIndex(modelshader.ID, "Lights");
   glUniformBlockBinding(modelshader.ID, lightsIndex, 0);
 
-
   
   float lastTickTime = 0;
   state.deltaTime = 0;
-  while(state.IsGameRuning)
+  while(state.isGameRuning)
   {
     int i = 0;
     float time = SDL_GetTicks();
     
     state.deltaTime = (time - lastTickTime) / 1000.0f;
-    Update(state.deltaTime);  
+    Update(state.deltaTime, ioptr);  
     SetShaderFloat(&modelshader,"time", time);
     Render(ioptr,time,skyboxVAO, cubemapTxt);
     lastTickTime = time;
@@ -247,12 +272,12 @@ float skyboxVertices[] = {
 
 
 
-void Update(float deltaTime)
+void Update(float deltaTime, ImGuiIO* io)
 {   
   if(!state.loadedScene)
     return;
       state.keyboardStates = SDL_GetKeyboardState(NULL);
-      if(state.isMouseLocked)
+      if(state.isMouseLocked && !state.isPlayingModeOn)
       {
         if(isKeyDown(SDL_SCANCODE_W))
           CameraNodeHandleWASD(state.loadedScene->activeCamera, deltaTime, CAMERA_EDIT_FORWARD);
@@ -271,22 +296,25 @@ void Update(float deltaTime)
     {
       cImGui_ImplSDL2_ProcessEvent(&state.event);
       if(state.event.type == SDL_QUIT)
-        state.IsGameRuning = false;
-
+        state.isGameRuning = false;
       if(state.event.type == SDL_MOUSEMOTION)
       {
         float dx, dy;
         dx = state.event.motion.xrel;
         dy = state.event.motion.yrel;
-        if(state.isMouseLocked) 
-          CameraHandleMouse(state.loadedScene->activeCamera, dx, dy, true); 
+        if(state.isMouseLocked && !state.isPlayingModeOn) 
+          CameraHandleMouse(state.loadedScene->activeCamera, dx, dy, true);
+        else if(state.isPlayingModeOn && playModeState.playModePlayer)
+        {
+          PlayerNodeHandleMouse(playModeState.playModePlayer, playModeState.playModeCamera, dx, dy); 
+        }
       }
-      if(state.event.type == SDL_KEYDOWN)
+      if(state.event.type == SDL_KEYDOWN && !io->WantCaptureKeyboard)
       {
         switch(state.event.key.keysym.sym)
         {
           case SDLK_ESCAPE:
-            state.IsGameRuning= false;
+            state.isGameRuning= false;
           case SDLK_f:
             if(state.isMouseLocked)
             {
@@ -295,21 +323,99 @@ void Update(float deltaTime)
             }
             state.isMouseLocked = true;
             break;
+         case SDLK_p:
+          {
+            if(!state.isPlayingModeOn && state.isMouseLocked)
+            {
+              CameraNode* activeCam = SceneFindActiveCamera(state.loadedScene); 
+              if(!activeCam)
+                printf("No active camera found, can't enter play mode \n");
+              else
+              {
+                TransformCopyTo(&activeCam->base.transform, &playModeState.cameraTransform);
+                playModeState.playModeCamera = activeCam;
+                PlayerNode* player = SceneFindActivePlayer(state.loadedScene);
+                if(player)
+                {
+                  TransformCopyTo(&player->base.transform, &playModeState.playerTransform);
+                  playModeState.playModePlayer = player;
+                }
+                state.isPlayingModeOn = true;
+              }
+            }
+            else 
+            {
+              CameraNode* activeCam = SceneFindActiveCamera(state.loadedScene); 
+              state.isPlayingModeOn = false;
+              if(playModeState.playModePlayer)
+              {
+                PlayerNode* player = SceneFindActivePlayer(state.loadedScene);
+                TransformCopyTo(&playModeState.playerTransform, &player->base.transform);
+                TransformCopyTo(&playModeState.cameraTransform, &activeCam->base.transform);
+                glm_vec3_fill(player->velocity, 0);
+                SpatialNodeUpdateGlobalTransform((SpatialNode*) player);
+                playModeState.playModePlayer = NULL;
+                playModeState.playModeCamera = NULL;
+              }
+              else if(playModeState.playModeCamera)
+              {
+                TransformCopyTo(&playModeState.cameraTransform, &activeCam->base.transform);
+                SpatialNodeUpdateGlobalTransform((SpatialNode*) activeCam);
+                playModeState.playModeCamera = NULL;
+              }
+            }
+            break;
+          }
+        
         }
       }
-   }
-  CalcViewMatFromCamera(state.loadedScene->activeCamera);
-  UseShader(&skyboxShader);
-  SetShaderMatrix4f(&skyboxShader, "projection", state.loadedScene->activeCamera->projection);
 
-  UseShader(&modelshader);
-  SetShaderMatrix4f(&modelshader, "projection", state.loadedScene->activeCamera->projection);
-  SetShaderMatrix4f(&modelshader,"view",state.loadedScene->activeCamera->view);
-  UseShader(&nodeShader);
-  SetShaderMatrix4f(&nodeShader, "view", state.loadedScene->activeCamera->view);
-  SetShaderMatrix4f(&nodeShader, "projection", state.loadedScene->activeCamera->projection);
-  SetShaderFloat3(&nodeShader, "viewPos", state.loadedScene->activeCamera->base.transform.position);
-  SDL_SetRelativeMouseMode(state.isMouseLocked);
+    }
+
+     
+  if(state.isPlayingModeOn)
+  {
+    if(playModeState.playModePlayer)
+    {
+      if(isKeyDown(SDL_SCANCODE_W))
+        PlayerNodeUpdate(playModeState.playModePlayer, deltaTime, PLAYER_FORWARD);
+      if(isKeyDown(SDL_SCANCODE_S))
+        PlayerNodeUpdate(playModeState.playModePlayer, deltaTime, PLAYER_BACKWARD);
+      if(isKeyDown(SDL_SCANCODE_A))
+        PlayerNodeUpdate(playModeState.playModePlayer, deltaTime, PLAYER_LEFT);
+      if(isKeyDown(SDL_SCANCODE_D))
+        PlayerNodeUpdate(playModeState.playModePlayer, deltaTime, PLAYER_RIGHT);
+      if(isKeyDown(SDL_SCANCODE_SPACE))
+        PlayerNodeUpdate(playModeState.playModePlayer, deltaTime, PLAYER_JUMP);
+      IsPlayerGrounded(playModeState.playModePlayer, state.loadedScene, 0.2f);
+      PlayerNodePhysicsStep(playModeState.playModePlayer, deltaTime);
+    }
+      CalcViewMatFromCamera(playModeState.playModeCamera);
+      UseShader(&skyboxShader);
+      SetShaderMatrix4f(&skyboxShader, "projection", playModeState.playModeCamera->projection);
+
+      UseShader(&modelshader);
+      SetShaderMatrix4f(&modelshader, "projection",playModeState.playModeCamera->projection);
+      SetShaderMatrix4f(&modelshader,"view", playModeState.playModeCamera->view);
+      
+    ScenePhysicsUpdateCollisions(state.loadedScene);
+    SDL_SetRelativeMouseMode(true);
+  }
+  else 
+  {
+    CalcViewMatFromCamera(state.loadedScene->activeCamera);
+    UseShader(&skyboxShader);
+    SetShaderMatrix4f(&skyboxShader, "projection", state.loadedScene->activeCamera->projection);
+
+    UseShader(&modelshader);
+    SetShaderMatrix4f(&modelshader, "projection", state.loadedScene->activeCamera->projection);
+    SetShaderMatrix4f(&modelshader,"view",state.loadedScene->activeCamera->view);
+    UseShader(&nodeShader);
+    SetShaderMatrix4f(&nodeShader, "view", state.loadedScene->activeCamera->view);
+    SetShaderMatrix4f(&nodeShader, "projection", state.loadedScene->activeCamera->projection);
+    SetShaderFloat3(&nodeShader, "viewPos", state.loadedScene->activeCamera->base.transform.position);
+    SDL_SetRelativeMouseMode(state.isMouseLocked);
+  }
 }
 unsigned int LoadCubemap(dynlist_t* faces)
 {

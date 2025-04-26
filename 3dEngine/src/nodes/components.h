@@ -18,6 +18,7 @@ typedef struct
 
 
 void TransformDefaultInit(Transform *t);
+void TransformCopyTo(Transform *src, Transform *dest);
 
 void TransformGetForward(const Transform* t, vec3 dest);
 void TransformGetForwardNoPitch(const Transform* t, vec3 dest);

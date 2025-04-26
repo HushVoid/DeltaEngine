@@ -35,35 +35,34 @@ ColliderNode* ColliderNodeCreateDefault(const char* name)
 }
 void ColliderNodeGetWorldAABB(const ColliderNode* collider, vec3 outMin, vec3 outMax)
 {
-  vec3 corners[8] = 
-  {
-    // Bottom face (z = min.z)
-    {collider->min[0], collider->min[1], collider->min[2]},  // 0: Left-front-bottom
-    {collider->max[0], collider->min[1], collider->min[2]},  // 1: Right-front-bottom
-    {collider->max[0], collider->max[1], collider->min[2]},  // 2: Right-back-bottom
-    {collider->min[0], collider->max[1], collider->min[2]},  // 3: Left-back-bottom
+    vec3 corners[8] = 
+    {
+        {collider->min[0], collider->min[1], collider->min[2]},
+        {collider->max[0], collider->min[1], collider->min[2]},
+        {collider->max[0], collider->max[1], collider->min[2]},
+        {collider->min[0], collider->max[1], collider->min[2]},
+        {collider->min[0], collider->min[1], collider->max[2]},
+        {collider->max[0], collider->min[1], collider->max[2]},
+        {collider->max[0], collider->max[1], collider->max[2]},
+        {collider->min[0], collider->max[1], collider->max[2]}
+    };
 
-    // Top face (z = max.z)
-    {collider->min[0], collider->min[1], collider->max[2]},  // 4: Left-front-top
-    {collider->max[0], collider->min[1], collider->max[2]},  // 5: Right-front-top
-    {collider->max[0], collider->max[1], collider->max[2]},  // 6: Right-back-top
-    {collider->min[0], collider->max[1], collider->max[2]}   // 7: Left-back-top
-    // 
-  };
-  glm_vec3_fill(outMax, FLT_MIN);
-  glm_vec3_fill(outMin, FLT_MAX);
-  for(int i = 0; i < 8; i++)
-  {
-    mat4 globalMatrix;
-    vec3 worldPos;
-    glm_mat4_mulv3(collider->base.globalTransformMatrix, corners[i], 1.0, worldPos);
-    outMin[0] = fminf(outMin[0], worldPos[0]);
-    outMin[1] = fminf(outMin[1], worldPos[1]);
-    outMin[2] = fminf(outMin[2], worldPos[2]);
-    outMax[0] = fmaxf(outMax[0], worldPos[0]);
-    outMin[1] = fmaxf(outMax[1], worldPos[1]);
-    outMin[2] = fmaxf(outMax[2], worldPos[2]);
-  }
+    glm_vec3_fill(outMin, FLT_MAX);
+    glm_vec3_fill(outMax, -FLT_MAX);
+
+    for(int i = 0; i < 8; i++) 
+   {
+        vec4 worldPos;
+        glm_mat4_mulv3(collider->base.globalTransformMatrix, corners[i], 1.0f, worldPos);
+        
+        outMin[0] = fminf(outMin[0], worldPos[0]);
+        outMin[1] = fminf(outMin[1], worldPos[1]);
+        outMin[2] = fminf(outMin[2], worldPos[2]);
+        
+        outMax[0] = fmaxf(outMax[0], worldPos[0]);
+        outMax[1] = fmaxf(outMax[1], worldPos[1]);
+        outMax[2] = fmaxf(outMax[2], worldPos[2]);
+    }
 }
 bool ColliderNodeCheckCollision(const ColliderNode* a, const ColliderNode* b)
 {
@@ -82,29 +81,38 @@ void ColliderNodeHandleStateChange(ColliderNode* a, ColliderNode* b, bool state)
 }
 void ColliderNodeResolveCollision(ColliderNode* a, ColliderNode*b)
 {
-  vec3 aMin, aMax, bMin, bMax;
-  ColliderNodeGetWorldAABB(a, aMin, aMax);
-  ColliderNodeGetWorldAABB(b, bMin, bMax);
-  vec3 overlap = 
-    {
-      fminf(aMax[0], bMax[0]) - fmaxf(aMin[0], bMin[0]),
-      fminf(aMax[1], bMax[1]) - fmaxf(aMin[1], bMin[1]),
-      fminf(aMax[2], bMax[2]) - fmaxf(aMin[2], bMin[2])
+    printf("assalamu aleikum brat tut coliding %s and %s \n", a->base.base.name, b->base.base.name);
+    vec3 aMin, aMax, bMin, bMax;
+    ColliderNodeGetWorldAABB(a, aMin, aMax);
+    ColliderNodeGetWorldAABB(b, bMin, bMax);
+
+    vec3 overlap = {
+        fminf(aMax[0], bMax[0]) - fmaxf(aMin[0], bMin[0]),
+        fminf(aMax[1], bMax[1]) - fmaxf(aMin[1], bMin[1]),
+        fminf(aMax[2], bMax[2]) - fmaxf(aMin[2], bMin[2])
     };
-  int axis = 0;
-  if(overlap[1] < overlap[axis]) axis = 1;
-  if(overlap[2] < overlap[axis]) axis = 2;
 
-  float dir = (a->base.transform.position[axis] < b->base.transform.position[axis]) ? -1.0f : 1.0f;
+    int axis = 0;
+    if(overlap[1] < overlap[axis]) axis = 1;
+    if(overlap[2] < overlap[axis]) axis = 2;
 
-  if(!a->isStatic)
-  {
-   a->base.transform.position[axis] += overlap[axis] * dir * 0.5f; 
-  }
-  if(!b->isStatic)
-  {
-   b->base.transform.position[axis] -= overlap[axis] * dir * 0.5f; 
-  }
+    float dir = (a->base.transform.position[axis] < b->base.transform.position[axis]) ? -1.0f : 1.0f;
+
+    if(!a->isStatic && !b->isStatic) 
+    {
+        float resolution = overlap[axis] * 0.5f * dir;
+        a->base.transform.position[axis] += resolution;
+        b->base.transform.position[axis] -= resolution;
+    } 
+    else if(!a->isStatic) 
+    {
+        a->base.transform.position[axis] += overlap[axis] * dir;
+    }
+    else if(!b->isStatic)
+    {
+        b->base.transform.position[axis] -= overlap[axis] * dir;
+    }
+
   SpatialNodeUpdateGlobalTransform((SpatialNode*) a);
   SpatialNodeUpdateGlobalTransform((SpatialNode*) b);
 }

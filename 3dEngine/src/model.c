@@ -121,12 +121,12 @@ Mesh* ProcessMesh(Model *model, struct aiMesh *mesh, const struct aiScene *scene
       struct aiMaterial *material = scene->mMaterials[mesh->mMaterialIndex];
       if(aiGetMaterialTextureCount(material, aiTextureType_DIFFUSE) == 0)
       {
-       Texture texture;
-       texture.id = TextureFromFile("", MISSING_TEXTURE_PATH);
-       strcpy(texture.type, "texture_diffuse");
-       strcpy(texture.path, MISSING_TEXTURE_PATH);
-       dynlistPush(rMesh->textures, &texture);
-       dynlistPush(model->texturesLoaded, &texture);
+         Texture texture;
+         texture.id = TextureFromFile("", MISSING_TEXTURE_PATH);
+         strcpy(texture.type, "texture_diffuse");
+         strcpy(texture.path, MISSING_TEXTURE_PATH);
+         dynlistPush(rMesh->textures, &texture);
+         dynlistPush(model->texturesLoaded, &texture);
       }
       else
       {
@@ -163,6 +163,15 @@ Mesh* ProcessMesh(Model *model, struct aiMesh *mesh, const struct aiScene *scene
         }
         
       }
+  }
+  else 
+  {
+         Texture texture;
+         texture.id = TextureFromFile("", MISSING_TEXTURE_PATH);
+         strcpy(texture.type, "texture_diffuse");
+         strcpy(texture.path, MISSING_TEXTURE_PATH);
+         dynlistPush(rMesh->textures, &texture);
+         dynlistPush(model->texturesLoaded, &texture);
   }
   SetupMesh(rMesh);
   return rMesh;

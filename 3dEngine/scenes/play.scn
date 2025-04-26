@@ -1,0 +1,98 @@
+{
+	"type":	"base",
+	"name":	"root",
+	"enabled":	true,
+	"children":	[{
+			"type":	"camera",
+			"name":	"MAINCAM",
+			"enabled":	false,
+			"transform":	{
+				"position":	[11.555508613586426, 7.0981297492980957, -9.0355844497680664],
+				"rotation":	[-27.200088500976563, 137.79901123046875, 0],
+				"scale":	[1, 1, 1]
+			},
+			"visible":	true,
+			"fov":	60,
+			"nearplane":	0.125,
+			"farplane":	100,
+			"aspect":	1.7777777910232544,
+			"isActive":	false
+		}, {
+			"type":	"model",
+			"name":	"cube",
+			"enabled":	false,
+			"transform":	{
+				"position":	[0, 0, 3],
+				"rotation":	[0, 0, 0],
+				"scale":	[1, 1, 1]
+			},
+			"visible":	true,
+			"shapetype":	"Mdl_cube",
+			"modelpath":	"E:\\projects\\deltaengine\\3dengine\\resources\\models\\Cube\\Cube.obj"
+		}, {
+			"type":	"model",
+			"name":	"cylinder",
+			"enabled":	false,
+			"transform":	{
+				"position":	[-3, 0, 0],
+				"rotation":	[0, 0, 0],
+				"scale":	[1, 1, 1]
+			},
+			"visible":	true,
+			"shapetype":	"Mdl_cylinder",
+			"modelpath":	"E:\\projects\\deltaengine\\3dengine\\resources\\models\\Cylinder\\Cylinder.obj"
+		}, {
+			"type":	"model",
+			"name":	"capsule",
+			"enabled":	false,
+			"transform":	{
+				"position":	[0, 0, 0],
+				"rotation":	[0, 0, 0],
+				"scale":	[1, 1, 1]
+			},
+			"visible":	true,
+			"shapetype":	"Mdl_capsule",
+			"modelpath":	"E:\\projects\\deltaengine\\3dengine\\resources\\models\\Capsule\\Capsule.obj"
+		}, {
+			"type":	"model",
+			"name":	"backpack",
+			"enabled":	false,
+			"transform":	{
+				"position":	[0, 0, -3],
+				"rotation":	[0, 0, 0],
+				"scale":	[1, 1, 1]
+			},
+			"visible":	true,
+			"shapetype":	"Mdl_custom",
+			"modelpath":	"E:\\projects\\deltaengine\\3dengine\\resources\\models\\backpack\\backpack.obj"
+		}, {
+			"type":	"player",
+			"name":	"Player",
+			"enabled":	false,
+			"transform":	{
+				"position":	[5, 0, 0],
+				"rotation":	[0, 0, 0],
+				"scale":	[1, 1, 1]
+			},
+			"visible":	true,
+			"gravityAffected":	true,
+			"speed":	30,
+			"jump":	5,
+			"isActive":	true
+		}, {
+			"type":	"camera",
+			"name":	"Camera",
+			"enabled":	false,
+			"transform":	{
+				"position":	[0, 2, 0],
+				"rotation":	[0, 0, 0],
+				"scale":	[1, 1, 1]
+			},
+			"visible":	true,
+			"fov":	60,
+			"nearplane":	0.125,
+			"farplane":	100,
+			"aspect":	1.7777777910232544,
+			"isActive":	true
+		}]
+}

@@ -37,6 +37,7 @@ void CalcProjectionMatFromCamera(CameraNode* camera);
 
 void CameraNodeHandleWASD(CameraNode* camera, float delta, CameraMovementDir dir);
 void CameraHandleMouse(CameraNode* camera, float dX, float dY, bool constrainPitch);
+CameraNode* CameraNodeClone(const CameraNode* src);
 
 void CameraNodeUpdate(CameraNode* camera, float delta);
 

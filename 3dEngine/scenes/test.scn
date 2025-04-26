@@ -7,33 +7,49 @@
 			"name":	"MAINCAM",
 			"enabled":	false,
 			"transform":	{
-				"position":	[7.9580655097961426, 6.0846762657165527, -3.4184772968292236],
-				"rotation":	[-22.600238800048828, 118.39490509033203, 0],
+				"position":	[14.598553657531738, 44.275184631347656, 4.68480682373047],
+				"rotation":	[-56.200187683105469, 1857.783935546875, 0],
 				"scale":	[1, 1, 1]
 			},
 			"visible":	true,
 			"fov":	60,
 			"nearplane":	0.125,
 			"farplane":	100,
-			"aspect":	1.7777777910232544
+			"aspect":	1.7777777910232544,
+			"isActive":	false
 		}, {
 			"type":	"model",
 			"name":	"cube",
 			"enabled":	false,
 			"transform":	{
-				"position":	[0, 0, 3],
+				"position":	[5, -6, 0],
 				"rotation":	[0, 0, 0],
-				"scale":	[1, 1, 1]
+				"scale":	[50, 2, 50]
 			},
 			"visible":	true,
 			"shapetype":	"Mdl_cube",
-			"modelpath":	"E:\\projects\\deltaengine\\3dengine\\resources\\models\\Cube\\Cube.obj"
+			"modelpath":	"E:\\projects\\deltaengine\\3dengine\\resources\\models\\Cube\\Cube.obj",
+			"children":	[{
+					"type":	"collider",
+					"name":	"Collider",
+					"enabled":	false,
+					"transform":	{
+						"position":	[0, 0, 0],
+						"rotation":	[0, 0, 0],
+						"scale":	[1, 1, 1]
+					},
+					"visible":	true,
+					"minAABB":	[-50, -1, -50],
+					"maxAABB":	[50, 1, 50],
+					"isTrigger":	false,
+					"isStatic":	true
+				}]
 		}, {
 			"type":	"model",
 			"name":	"cylinder",
 			"enabled":	false,
 			"transform":	{
-				"position":	[-3, 0, 0],
+				"position":	[-3, -3, 0],
 				"rotation":	[0, 0, 0],
 				"scale":	[1, 1, 1]
 			},
@@ -45,7 +61,7 @@
 			"name":	"capsule",
 			"enabled":	false,
 			"transform":	{
-				"position":	[0, 0, 0],
+				"position":	[0, -2.0999999046325684, 0],
 				"rotation":	[0, 0, 0],
 				"scale":	[1, 1, 1]
 			},
@@ -57,7 +73,7 @@
 			"name":	"backpack",
 			"enabled":	false,
 			"transform":	{
-				"position":	[0, 0, -3],
+				"position":	[0, -3, -3],
 				"rotation":	[0, 0, 0],
 				"scale":	[1, 1, 1]
 			},
@@ -65,36 +81,148 @@
 			"shapetype":	"Mdl_custom",
 			"modelpath":	"E:\\projects\\deltaengine\\3dengine\\resources\\models\\backpack\\backpack.obj"
 		}, {
-			"type":	"camera",
-			"name":	"Camera",
+			"type":	"player",
+			"name":	"Player",
 			"enabled":	false,
 			"transform":	{
-				"position":	[0, 3, 0],
+				"position":	[5, 0, 0],
 				"rotation":	[0, 0, 0],
 				"scale":	[1, 1, 1]
 			},
 			"visible":	true,
-			"fov":	60,
-			"nearplane":	0.125,
-			"farplane":	100,
-			"aspect":	1.7777777910232544
+			"gravityAffected":	true,
+			"speed":	10,
+			"jump":	5,
+			"isActive":	true,
+			"children":	[{
+					"type":	"camera",
+					"name":	"Camera",
+					"enabled":	false,
+					"transform":	{
+						"position":	[0, 2, 0],
+						"rotation":	[0, 0, 0],
+						"scale":	[1, 1, 1]
+					},
+					"visible":	true,
+					"fov":	60,
+					"nearplane":	0.125,
+					"farplane":	100,
+					"aspect":	1.7777777910232544,
+					"isActive":	true
+				}]
 		}, {
 			"type":	"lightp",
 			"name":	"Point light",
 			"enabled":	false,
 			"transform":	{
-				"position":	[0, 5, 0],
+				"position":	[0, 10, 0],
 				"rotation":	[0, 0, 0],
 				"scale":	[1, 1, 1]
 			},
 			"visible":	true,
 			"color":	{
-				"":	0.45766481757164,
-				"":	0.71078431606292725,
-				"":	0.25783354043960571
+				"":	1,
+				"":	1,
+				"":	1
 			},
-			"intencity":	3,
-			"radius":	260,
+			"intencity":	1,
+			"radius":	182,
 			"lightID":	0
+		}, {
+			"type":	"lights",
+			"name":	"Spot light",
+			"enabled":	false,
+			"transform":	{
+				"position":	[36, 11, 0],
+				"rotation":	[0, 0, 0],
+				"scale":	[1, 1, 1]
+			},
+			"visible":	true,
+			"color":	{
+				"":	0.31101164221763611,
+				"":	0.941176474094391,
+				"":	0.14763551950454712
+			},
+			"direction":	{
+				"":	0,
+				"":	-1,
+				"":	0
+			},
+			"intencity":	1,
+			"innerdeg":	12.5,
+			"outerdeg":	35,
+			"lightID":	1
+		}, {
+			"type":	"lights",
+			"name":	"Spot light",
+			"enabled":	false,
+			"transform":	{
+				"position":	[-32, 11, 0],
+				"rotation":	[0, 0, 0],
+				"scale":	[1, 1, 1]
+			},
+			"visible":	true,
+			"color":	{
+				"":	0,
+				"":	1,
+				"":	0.970587968826294
+			},
+			"direction":	{
+				"":	0,
+				"":	-1,
+				"":	0
+			},
+			"intencity":	1,
+			"innerdeg":	12.5,
+			"outerdeg":	35,
+			"lightID":	2
+		}, {
+			"type":	"lights",
+			"name":	"Spot light",
+			"enabled":	false,
+			"transform":	{
+				"position":	[0, 11, 34],
+				"rotation":	[0, 0, 0],
+				"scale":	[1, 1, 1]
+			},
+			"visible":	true,
+			"color":	{
+				"":	0.88235294818878174,
+				"":	0.5190311074256897,
+				"":	0
+			},
+			"direction":	{
+				"":	0,
+				"":	-1,
+				"":	0
+			},
+			"intencity":	1,
+			"innerdeg":	12.5,
+			"outerdeg":	35,
+			"lightID":	3
+		}, {
+			"type":	"lights",
+			"name":	"Spot light",
+			"enabled":	false,
+			"transform":	{
+				"position":	[0, 11, -34],
+				"rotation":	[0, 0, 0],
+				"scale":	[1, 1, 1]
+			},
+			"visible":	true,
+			"color":	{
+				"":	0.90282571315765381,
+				"":	0,
+				"":	0.99019604921340942
+			},
+			"direction":	{
+				"":	0,
+				"":	-1,
+				"":	0
+			},
+			"intencity":	1,
+			"innerdeg":	12.5,
+			"outerdeg":	35,
+			"lightID":	4
 		}]
 }

@@ -1,11 +1,14 @@
 #include "gpu_light.h"
 #include "macro.h"
+#include "nodes/spatial_node.h"
 
 
 GPUPointLight* GPUPointLightCreate(PointLightNode* node)
 {
   GPUPointLight* light = calloc(1, sizeof(GPUPointLight));
-  glm_vec4_copy3(node->base.transform.position, light->position);
+  vec3 globalPos;
+  SpatialGetGlobalPos((SpatialNode*)node, globalPos);
+  glm_vec4_copy3(globalPos, light->position);
   light->position[3] = node->intencity;
   glm_vec4_copy3(node->light.color, light->color_diffuse);
   light->attenuation[0] = node->light.constant;
@@ -29,7 +32,9 @@ GPUSpotLight* GPUSpotLightCreate(SpotLightNode* node)
  light->direction[3] = cos(DEG2RAD(node->light.cutOff));
  glm_vec4_copy3(node->light.color, light->color);
  light->color[3] = cos(DEG2RAD(node->light.outerCutOff));
- glm_vec4_copy3(node->base.transform.position, light->position);
+ vec3 globalPos;
+ SpatialGetGlobalPos((SpatialNode*)node, globalPos);
+ glm_vec4_copy3(globalPos, light->position);
  light->position[3] = node->intencity;
  light->id = node->id;
  return light;

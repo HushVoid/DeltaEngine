@@ -7,6 +7,12 @@ void TransformDefaultInit(Transform *t)
   glm_vec3_fill(t->scale, 1);
 }
 
+void TransformCopyTo(Transform *src, Transform *dest)
+{
+  glm_vec3_copy(src->scale, dest->scale);
+  glm_vec3_copy(src->position, dest->position);
+  glm_vec3_copy(src->rotation, dest->rotation);
+}
 void TransformGetForward(const Transform* t, vec3 dest)
 {
   float pitch = DEG2RAD(t->rotation[0]);

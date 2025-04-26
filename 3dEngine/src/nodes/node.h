@@ -53,4 +53,4 @@ NodeType Str2NodeT(const char* type);
 char* NodeToJSON(const Node* node);
 Node* NodeFromJSON(const cJSON* json, dynlist_t* renderQueue);
 
-#endif // !NODE_H
+#endif // !NH

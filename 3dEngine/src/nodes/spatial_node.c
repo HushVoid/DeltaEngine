@@ -29,16 +29,25 @@ void SpatialNodeUpdateGlobalTransform(SpatialNode* node)
     };
     
     mat4 rotMat;
-    glm_translate(localTransform, node->transform.position);
     glm_euler_yxz(eulerAngles, rotMat);      
-    glm_scale(localTransform, node->transform.scale);    
+    glm_translate(localTransform, node->transform.position);
     glm_mat4_mul(localTransform, rotMat, localTransform); 
+    glm_scale(localTransform, node->transform.scale);    
     if (node->base.parent && NodeHasTransform(node->base.parent))
     {
         SpatialNode* parent = (SpatialNode*)node->base.parent;
         glm_mat4_mul(parent->globalTransformMatrix, localTransform, node->globalTransformMatrix);
     } else {
         glm_mat4_copy(localTransform, node->globalTransformMatrix);
+    }
+    for(int i = 0; i < node->base.children->size; i++)
+    {
+      Node * child = *(Node**)dynlistAt(node->base.children, i);
+      if(NodeHasTransform(child))
+      {
+        SpatialNode* spatial = (SpatialNode*) child;
+        SpatialNodeUpdateGlobalTransform(spatial); 
+      }
     }
 
 }

@@ -50,8 +50,10 @@ void CalcViewMatFromCamera(CameraNode* camera)
   vec3 forward;
   TransformGetForward(&camera->base.transform, forward);
   vec3 target;
-  glm_vec3_add(camera->base.transform.position, forward, target);
-  glm_lookat(camera->base.transform.position, target, camera->updir, camera->view);
+  vec3 globalPos;
+  SpatialGetGlobalPos((SpatialNode*)camera, globalPos);
+  glm_vec3_add(globalPos, forward, target);
+  glm_lookat(globalPos, target, camera->updir, camera->view);
 }
 void CalcProjectionMatFromCamera(CameraNode* camera)
 {
@@ -63,7 +65,9 @@ void CameraNodeToJSON(const CameraNode* node, cJSON* root)
   cJSON_AddNumberToObject(root, "fov", node->fov); 
   cJSON_AddNumberToObject(root, "nearplane", node->nearPlane); 
   cJSON_AddNumberToObject(root, "farplane", node->farPlane); 
-  cJSON_AddNumberToObject(root, "aspect", node->aspect); 
+  cJSON_AddNumberToObject(root, "aspect", node->aspect);
+  cJSON_AddBoolToObject(root, "isActive", node->isActive);
+
 }
 
 //Hande EDIT mode Camera movement;
@@ -84,6 +88,7 @@ void CameraNodeHandleWASD(CameraNode* camera, float delta, CameraMovementDir dir
     glm_vec3_add(camera->base.transform.position, rightDir, camera->base.transform.position);
   if(dir == CAMERA_EDIT_LEFT)
     glm_vec3_sub(camera->base.transform.position, rightDir, camera->base.transform.position);
+  SpatialNodeUpdateGlobalTransform((SpatialNode*)camera);
 }
 //Handle EDIT mode Camera movement; 
 void CameraHandleMouse(CameraNode* camera, float dX, float dY, bool constrainPitch)
@@ -107,7 +112,9 @@ CameraNode* CameraNodeFromJSON(const cJSON* json)
   float fov = (float)cJSON_GetNumberValue(cJSON_GetObjectItem(json, "fov"));  
   float far = (float)cJSON_GetNumberValue(cJSON_GetObjectItem(json, "farplane"));  
   float aspect = (float)cJSON_GetNumberValue(cJSON_GetObjectItem(json, "aspect"));
+  bool isActive = cJSON_IsTrue(cJSON_GetObjectItem(json, "isActive"));
   CameraNode* node = CameraNodeCreate(name, fov, (vec3){0, 1, 0}, near, far, aspect);
+  node->isActive = isActive;
   cJSON* transform = cJSON_GetObjectItem(json, "transform");
   if(transform)
   {
@@ -134,4 +141,18 @@ void CameraNodeFree(CameraNode* node)
     return;
   }
   free(node);
+}
+CameraNode* CameraNodeClone(const CameraNode* src)
+{
+    CameraNode* dest = (CameraNode*)CameraNodeCreateDefault(src->base.base.name);
+    memcpy(&dest->base, &src->base, sizeof(SpatialNode));
+    dest->fov = src->fov;
+    dest->nearPlane = src->nearPlane;
+    dest->farPlane = src->farPlane;
+    dest->speed = src->speed;
+    dest->sens = src->sens;
+    dest->isActive = src->isActive;
+    glm_mat4_copy(src->projection, dest->projection);
+    glm_mat4_copy(src->view, dest->view);
+    return dest;
 }

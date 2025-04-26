@@ -4,6 +4,7 @@
 #include "nodes/collision_node.h"
 #include "nodes/light_node.h"
 #include "nodes/node.h"
+#include "nodes/spatial_node.h"
 #include "shader.h"
 #include <string.h>
 #include <windows.h>
@@ -12,7 +13,7 @@
 Scene* SceneCreate(bool isLoaded)
 {
   Scene* scene = calloc(1, sizeof(Scene));
-  scene->lights = SceneCreateLightManager();
+  scene->lights = LightManagerCreate();
   SceneInitBillboardG(scene);
   if(!isLoaded) 
   {
@@ -95,17 +96,6 @@ void SceneInitBillboardG(Scene* scene)
   glGenerateMipmap(GL_TEXTURE_2D);
 
 }
-LightManager* SceneCreateLightManager()
-{
-  LightManager* manager = calloc(1, sizeof(LightManager));
-  manager->dirLight = NULL;
-  manager->spotLights = dynlistInit(sizeof(GPUSpotLight*), 10);
-  manager->pointLights = dynlistInit(sizeof(GPUPointLight*), 10);
-  manager->spotLightsCount = 0;
-  manager->pointLightsCount = 0;
-  manager->nextLightid = 0;
-  return manager;
-}
 void SceneDestroy(Scene* scene)
 {
   NodeDestroy(scene->root);
@@ -134,7 +124,7 @@ void SceneUpdateUBO(Scene* scene, GLuint ubo)
   }
   for(unsigned int i = 0; i < scene->lights->spotLightsCount; i++)
   {
-    GPUSpotLight* light = *(GPUSpotLight**)dynlistAt(scene->lights->spotLights, i);
+   GPUSpotLight* light = *(GPUSpotLight**)dynlistAt(scene->lights->spotLights, i);
     SpotLight_UploadToUBO(ubo, light, i);
   }
   scene->lights->lightsDirty = false;
@@ -177,7 +167,7 @@ bool CheckSphereCollisionWithScene(vec3 sphereCenter, float sphereRadius, Scene*
       
     vec3 colMin, colMax;
     ColliderNodeGetWorldAABB(col, colMin, colMax);
-      
+     
     if (CheckSphereCollision(sphereCenter, sphereRadius, colMin, colMax)) 
     {
       dynlistFree(colliders);
@@ -192,7 +182,7 @@ void IsPlayerGrounded(PlayerNode* player, Scene* scene, float checkDistance)
     if (!player || !scene) return;
     
     vec3 checkPoint;
-    glm_vec3_copy(player->base.transform.position, checkPoint);
+    SpatialGetGlobalPos((SpatialNode*)player, checkPoint);
     checkPoint[1] -= checkDistance; 
     
     bool isColiding =  CheckSphereCollisionWithScene(
@@ -200,6 +190,7 @@ void IsPlayerGrounded(PlayerNode* player, Scene* scene, float checkDistance)
         0.3f, 
         scene
     );
+    player->isGrounded = isColiding;
 }
 void SceneRender(Scene* scene, GLuint ubo, shaderStruct* modelShader, shaderStruct* nodeShader)
 {  
@@ -215,7 +206,6 @@ void SceneRender(Scene* scene, GLuint ubo, shaderStruct* modelShader, shaderStru
       SetShaderBool(modelShader, "lightEnabled", scene->enableLights);
       if(scene->enableLights)
       {
-        SetShaderFloat3(modelShader, "viewPos", scene->activeCamera->base.transform.position);
         SetShaderInt(modelShader, "activePointLights", scene->lights->pointLightsCount);
         SetShaderInt(modelShader, "activeSpotLights", scene->lights->spotLightsCount);
         if(scene->lights->lightsDirty)
@@ -272,15 +262,14 @@ dynlist_t* SceneFindAllNodesOfType(Node* root, NodeType type, bool recursive)
   }
   return nodes;
 }
-Node* SceneFindFirstNodeOfType(Scene* scene, NodeType type)
+Node* SceneFindFirstNodeOfType(Node* root, NodeType type)
 {
-  for(int i = 0; i < scene->root->children->size; i++)
+
+  for(int i = 0; i < root->children->size; i++)
   {
-    Node * node = *(Node**)dynlistAt(scene->root->children, i);
-    if(node && node->type == type)
-    {
-      return node; 
-    }
+    Node* child = *(Node**)dynlistAt(root->children, i);
+    Node* found = SceneFindFirstNodeOfType(child, type);
+    if(found) return found;
   }
   printf("SceneFindFirstNodeOfType: No nodes with type %s", NodeT2Str(type));
   return NULL;
@@ -324,6 +313,7 @@ Scene* SceneLoad(const char* path)
   scene->root = NodeFromJSON(json, scene->renderQueue);
   scene->activeCamera = (CameraNode*)NodeFindChild(scene->root, "MAINCAM", false);
   SceneGetAllLights(scene);
+  printf("proccessed scene\n");
   LightManagerFindHigestLightID(scene->lights);
   SceneInitBillboardG(scene);
   scene->lights->lightsDirty = true;
@@ -334,12 +324,13 @@ Scene* SceneLoad(const char* path)
 
 void SceneGetAllLights(Scene* scene)
 {
-  DirectionalLightNode* dirL = (DirectionalLightNode*)SceneFindFirstNodeOfType(scene, NODE_LIGHTD); 
+  dynlist_t* dirL = SceneFindAllNodesOfType(scene->root, NODE_LIGHTD, true); 
   dynlist_t* pointL = SceneFindAllNodesOfType(scene->root, NODE_LIGHTP, true);  
   dynlist_t* spotL = SceneFindAllNodesOfType(scene->root, NODE_LIGHTS, true);
-  if(dirL)
+  if(dirL && dirL->size >0)
   {
-    GPUDirLight* dirLS = GPUDirLightCreate(dirL);
+    DirectionalLightNode* light = (DirectionalLightNode*)*(Node**)dynlistAt(dirL, 0);
+    GPUDirLight* dirLS = GPUDirLightCreate(light);
     scene->lights->dirLight = dirLS;
   }
   for(int i = 0; i < pointL->size; i++)
@@ -351,35 +342,17 @@ void SceneGetAllLights(Scene* scene)
   scene->lights->pointLightsCount = pointL->size; 
   for(int i = 0; i < spotL->size; i++)
   {
-    SpotLightNode* light = (SpotLightNode*)*(Node**)dynlistAt(pointL, i);
+    SpotLightNode* light = (SpotLightNode*)*(Node**)dynlistAt(spotL, i);
     GPUSpotLight* shader_light = GPUSpotLightCreate(light);
     dynlistPush(scene->lights->spotLights, &shader_light);
   }
+  printf("s kaifom\n");
   scene->lights->spotLightsCount = spotL->size;
   dynlistFree(pointL);
   dynlistFree(spotL);
 }
 
-void SceneRemovePLightIndex(Scene* scene, GLuint ubo, int index)
-{
-  dynlistDeleteAt(scene->lights->pointLights, index);
-  scene->lights->pointLightsCount--;
-  UpdateUBOAfterRemoval(scene, ubo, LIGHT_TYPE_POINT, index);
-}
-void SceneRemoveSpotIndex(Scene* scene, GLuint ubo, int index)
-{
-  dynlistDeleteAt(scene->lights->spotLights, index);
-  scene->lights->spotLightsCount--;
-  UpdateUBOAfterRemoval(scene, ubo, LIGHT_TYPE_SPOT, index);
-  
-}
 
-void SceneRemoveDLight(Scene* scene, GLuint ubo)
-{
- free(scene->lights->dirLight); 
- scene->lights->dirLight = NULL;
- UpdateUBOAfterRemoval(scene, ubo, LIGHT_TYPE_DIR, 0);
-}
 
 void SceneUpdateAllGPULights(Scene* scene)
 { 
@@ -388,152 +361,120 @@ void SceneUpdateAllGPULights(Scene* scene)
   for(int i = 0; i < pointL->size; i++)
   {
     PointLightNode* light = (PointLightNode*)*(Node**)dynlistAt(pointL, i);
-    SceneUpdateGPUPLight(scene, light);
+    LMUpdateGPUPLight(scene->lights, light);    
   }
   for(int i = 0; i < spotL->size; i++)
   {
     SpotLightNode* light = (SpotLightNode*)*(Node**)dynlistAt(spotL, i);
-    SceneUpdateGPUSLight(scene, light);
+    LMUpdateGPUSLight(scene->lights, light);
   }
   dynlistFree(pointL);
   dynlistFree(spotL);
   
 }
 
-void SceneUpdateGPUPLight(Scene* scene, PointLightNode* newLight)
+CameraNode* SceneFindActiveCamera(Scene* scene)
 {
-  int index = LightManagerFindLightByID(scene->lights, newLight->id, LIGHT_TYPE_POINT);
-  if(index <= -1)
+  dynlist_t* cameras = SceneFindAllNodesOfType(scene->root, NODE_CAMERA, true);
+  for(int i = 0; i < cameras->size; i++)
   {
-    printf("SceneUpdateGPUPLight: no gpu light co-resonding to this light");
-    return;
+    CameraNode* camera = (CameraNode*)*(Node**)dynlistAt(cameras, i);
+    if(camera->isActive)
+    {
+      return camera;
+    }
   }
-  dynlistDeleteAt(scene->lights->pointLights, index);
-  GPUPointLight* light = GPUPointLightCreate(newLight);
-  dynlistPush(scene->lights->pointLights, &light);
-}
-void SceneUpdateGPUSLight(Scene* scene, SpotLightNode* newLight)
-{
-  int index = LightManagerFindLightByID(scene->lights, newLight->id, LIGHT_TYPE_SPOT);
-  if(index <= -1)
-  {
-    printf("SceneUpdateGPUSLight: no gpu light co-resonding to this light");
-    return;
-  }
-  dynlistDeleteAt(scene->lights->spotLights, index);
-  GPUSpotLight* light = GPUSpotLightCreate(newLight);
-  dynlistPush(scene->lights->spotLights, &light);
-}
-void SceneUpdateGPUDLight(Scene* scene, DirectionalLightNode* newLight)
-{
-  free(scene->lights->dirLight);
-  GPUDirLight* light = GPUDirLightCreate(newLight);
-  scene->lights->dirLight = light;
-}
-int LightManagerFindHigestLightID(LightManager* lm)
-{
-  if(!lm)
-  {
-    printf("LightManagerFindHigestLightID: light manager is invalid \n");
-    return -1;
-  }
-  int max = -1;
-  for(int i = 0; i < lm->pointLights->size; i++)
-  {
-    GPUPointLight* light = *(GPUPointLight**)dynlistAt(lm->pointLights, i);
-    if(light->id > max)
-      max = light->id;
-  }
-  for(int i = 0; i < lm->spotLights->size; i++)
-  {
-    GPUSpotLight* light = *(GPUSpotLight**)dynlistAt(lm->spotLights, i);
-    if(light->id > max)
-      max = light->id;
-  }
-  if(max > 0)
-  {
-    lm->nextLightid = max + 1;
-  }
-  return max;
+  printf("No active cameras\n");
+  dynlistFree(cameras);
+  return NULL; 
 }
 
-
-int LightManagerFindLightByID(LightManager* lm, int id, LightType type)
+PlayerNode* SceneFindActivePlayer(Scene* scene)
 {
-  if(!lm)
+  dynlist_t* players = SceneFindAllNodesOfType(scene->root, NODE_PLAYER, true);
+  for(int i = 0; i < players->size; i++)
   {
-    printf("LightManagerFindLightByID: Lightmanager is invalid\n");
-    return -1;
+    PlayerNode* player = (PlayerNode*)*(Node**)dynlistAt(players, i);
+    if(player->isActive)
+    {
+      return player;
+    }
   }
-  int index = -1;
-  switch(type)
-  {
-    case LIGHT_TYPE_SPOT:
-      for(int i = 0; i < lm->spotLights->size; i++)
-      {
-        GPUSpotLight* light = *(GPUSpotLight**)dynlistAt(lm->spotLights, i);
-        if(light->id == id)
+  printf("No active players\n");
+  dynlistFree(players);
+  return NULL; 
+  
+}
+
+void NodeDestroyWithLightCleanup(Node* node, Scene* scene, GLuint ubo)
+{
+    if(!node) return;
+    
+    if(node->children)
+    {
+        for(int i = 0; i < node->children->size; i++)
         {
-          index = i;
-          break;
+            Node* child = *(Node**)dynlistAt(node->children, i);
+            NodeDestroyWithLightCleanup(child, scene, ubo);
         }
-      }
-    case LIGHT_TYPE_POINT:
-      for(int i = 0; i < lm->pointLights->size; i++)
-      {
-        GPUPointLight* light = *(GPUPointLight**)dynlistAt(lm->pointLights, i);
-        if(light->id == id)
-        {
-          index = i;
-          break;
-        }
-      }
-    case LIGHT_TYPE_DIR:
-      return 0;
-  }
-  return index;
-}
-
-void UpdateUBOAfterRemoval(Scene* scene, GLuint ubo, LightType type, int removedIndex) 
-{
-    glBindBuffer(GL_UNIFORM_BUFFER, ubo);
-    size_t baseOffset = sizeof(GPUDirLight);
-    size_t lightSize = 0;
-    int* count = NULL;
-
-    switch (type) {
-        case LIGHT_TYPE_DIR: 
-            GPUDirLight empty = {0};
-            glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(GPUDirLight), &empty);
+        dynlistFree(node->children);
+    }
+    
+    switch(node->type)
+    {
+        case NODE_LIGHTD:
+            LMRemoveDLight(scene->lights, ubo);
+            scene->lights->lightsDirty = true;
+            DLightFree((DirectionalLightNode*)node);
             return;
-        case LIGHT_TYPE_POINT:
-            lightSize = sizeof(GPUPointLight);
-            count = &scene->lights->pointLightsCount;
-            break;
-        case LIGHT_TYPE_SPOT:
-            lightSize = sizeof(GPUSpotLight);
-            baseOffset += MAX_POINT_LIGHTS * sizeof(GPUPointLight);
-            count = &scene->lights->spotLightsCount;
-            break;
-        default: return;
+            
+        case NODE_LIGHTP:
+        {
+            PointLightNode* light = (PointLightNode*)node;
+            int index = LightManagerFindLightByID(scene->lights, light->id, LIGHT_TYPE_POINT);
+            LMRemovePLightIndex(scene->lights, ubo, index);
+            scene->lights->lightsDirty = true;
+            PLightFree(light);
+            return;
+        }
+            
+        case NODE_LIGHTS:
+        {
+            SpotLightNode* light = (SpotLightNode*)node;
+            int index = LightManagerFindLightByID(scene->lights, light->id, LIGHT_TYPE_SPOT);
+            LMRemoveSpotIndex(scene->lights, ubo, index);
+            scene->lights->lightsDirty = true;
+            SLightFree(light);
+            return;
+        }
+        case NODE_SPATIAL:
+            SpatialNodeFree((SpatialNode*)node);
+            return;
+        case NODE_CAMERA:
+            CameraNodeFree((CameraNode*)node);
+            return;
+        case NODE_MODEL:
+          int index = 0;
+          for(int i = 0; i < scene->renderQueue->size; i++)
+          {
+            Node* rendered = *(Node**)dynlistAt(scene->renderQueue, i++);
+            if(node == rendered)
+            {
+              index = i;
+            }
+          }
+          dynlistDeleteAt(scene->renderQueue, index);
+          ModelNodeFree((ModelNode*)node);
+          return;
+        case NODE_PLAYER:
+          PlayerNodeFree((PlayerNode*) node);
+          return;
+        case NODE_COLLISION:
+          ColliderNodeFree((ColliderNode*) node);
+          return;
+            
+        default:
+            free(node);
+            return;
     }
-
-    if (removedIndex < *count) {
-        size_t srcOffset = baseOffset + (removedIndex + 1) * lightSize;
-        size_t dstOffset = baseOffset + removedIndex * lightSize;
-        size_t size = (*count - removedIndex) * lightSize;
-
-        void* temp = malloc(size);
-        glGetBufferSubData(GL_UNIFORM_BUFFER, srcOffset, size, temp);
-        glBufferSubData(GL_UNIFORM_BUFFER, dstOffset, size, temp);
-        free(temp);
-    }
-
-    if (*count > 0) {
-        size_t lastOffset = baseOffset + *count * lightSize;
-        GPUPointLight empty = {0};
-        glBufferSubData(GL_UNIFORM_BUFFER, lastOffset, lightSize, &empty);
-    }
-
-    glBindBuffer(GL_UNIFORM_BUFFER, 0);
 }

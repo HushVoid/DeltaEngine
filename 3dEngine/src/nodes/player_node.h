@@ -6,6 +6,17 @@
 #include "spatial_node.h"
 #include "camera_node.h"
 #include "../include/SDL2/SDL.h"
+
+typedef enum
+{
+  PLAYER_STILL,
+  PLAYER_FORWARD,
+  PLAYER_BACKWARD,
+  PLAYER_LEFT,
+  PLAYER_RIGHT,
+  PLAYER_JUMP
+} PlayerMoveDir;
+
 typedef struct
 {
   SpatialNode base;
@@ -16,13 +27,17 @@ typedef struct
   vec3 upDir;
   bool gravityAffected;
   bool isGrounded;
+  bool isActive;
 } PlayerNode;
 
 PlayerNode* PlayerNodeCreate(float jumpForce,float speed, const char* name, bool hasGravity);
 PlayerNode* PlayerNodeCreateDefault(const char* name);
 
-void PlayerNodeUpdate(PlayerNode* player, float delta, const Uint8 *keyboardState);
 void PlayerNodeHandleMouse(PlayerNode* player, CameraNode* camera, float dx, float dy);
+void PlayerNodeUpdate(PlayerNode* player, float delta, PlayerMoveDir dir);
+void PlayerNodePhysicsStep(PlayerNode* player, float delta);
+
+PlayerNode* PlayerNodeClone(const PlayerNode* src);
 
 void PlayerNodeFree(PlayerNode* node);
 

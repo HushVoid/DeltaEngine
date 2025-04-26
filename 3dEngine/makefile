@@ -15,6 +15,7 @@ SOURCES += src/nodes/collision_node.c
 SOURCES += src/scene.c
 SOURCES += src/ui.c
 SOURCES += src/gpu_light.c
+SOURCES += src/light_manager.c
 
 
 

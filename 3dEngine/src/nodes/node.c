@@ -61,7 +61,6 @@ void NodeDestroy(Node* node)
     case NODE_MODEL:
       ModelNodeFree((ModelNode*)node);
       return;
-    //ADD PLAYER NODE DELITION HANDLING
     case NODE_PLAYER:
       PlayerNodeFree((PlayerNode*) node);
       return;
@@ -70,6 +69,7 @@ void NodeDestroy(Node* node)
       return;
   }
 }
+
 void NodeDrawEditor(Node* node, shaderStruct* shader, unsigned int texture, GLuint vao)
 {
 
@@ -77,21 +77,24 @@ void NodeDrawEditor(Node* node, shaderStruct* shader, unsigned int texture, GLui
   glBindTexture(GL_TEXTURE_2D, texture);
 
   glBindVertexArray(vao);
-
   vec4 tint = {1.0f, 1.0f, 1.0f, 1.0f};
   float iconSize = 0.5f;
+  bool dontDraw = false;
 
   switch(node->type)
   {
     case NODE_SPATIAL: glm_vec4_copy((vec4){1.0, 0.0, 0.0, 1.0f}, tint); break;
-    case NODE_CAMERA: glm_vec4_copy((vec4){0.0, 0.0, 1.0, 1.0f}, tint);  break;
+    case NODE_CAMERA:
+    if(strcmp("MAINCAM", node->name) == 0)
+        dontDraw = true;
+    glm_vec4_copy((vec4){0.0, 0.0, 1.0, 1.0f}, tint);  break;
     case NODE_PLAYER: glm_vec4_copy((vec4){0.0, 1.0, 0.0, 1.0f}, tint);  break;
-    case NODE_MODEL: glm_vec4_copy((vec4){0.0, 1.0, 0.0, 1.0f}, tint);  break;
+    case NODE_MODEL: glm_vec4_copy((vec4){0.2, 0.6, 0.1, 1.0f}, tint);  break;
     case NODE_COLLISION: glm_vec4_copy((vec4){1.0, 0.5, 0.0, 1.0f}, tint); break;
     case NODE_LIGHTP: glm_vec4_copy((vec4){1.0, 0.2, 0.5, 1.0f}, tint);  break;
     case NODE_LIGHTS: glm_vec4_copy((vec4){1.0, 0.5, 0.5, 1.0f}, tint);  break;
     case NODE_LIGHTD: glm_vec4_copy((vec4){0.5, 1.0, 0.2, 1.0f}, tint);  break;
-    case NODE_BASE: break;
+    case NODE_BASE: dontDraw = true; break;
   }
   if(node->isSelected)
   {
@@ -101,7 +104,7 @@ void NodeDrawEditor(Node* node, shaderStruct* shader, unsigned int texture, GLui
   {
     iconSize /=1.5;
   }
-  if(NodeHasTransform(node))
+  if(!dontDraw)
   {
     SpatialNode* spatial =  (SpatialNode*)node;
     vec3 globalPos;
@@ -112,12 +115,12 @@ void NodeDrawEditor(Node* node, shaderStruct* shader, unsigned int texture, GLui
     SetShaderFloat4(shader, "tintColor", tint);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
   }
-  
   for(int i = 0; i < node->children->size; i++)
   {
     Node *child = *(Node**)dynlistAt(node->children, i);
     NodeDrawEditor(child, shader, texture, vao);
   }
+
   glBindVertexArray(0);
 }
 
@@ -247,7 +250,6 @@ void NodeDeleteChild(Node* parent, Node* child)
     return;
   }
   dynlistDeleteAt(parent->children, childIndex);
-  NodeDestroy(child);
 }//By pointer
 
 void NodeDeleteChild_Index(Node* parent, unsigned int index)
@@ -404,7 +406,6 @@ Node* NodeFromJSON(const cJSON* json, dynlist_t* renderQueue)
   const char* typeStr = cJSON_GetStringValue(cJSON_GetObjectItem(json,"type"));
   NodeType type = Str2NodeT(typeStr);
   Node* node = NULL;
-  
   switch(type)
   {
     case NODE_BASE:
@@ -432,8 +433,10 @@ Node* NodeFromJSON(const cJSON* json, dynlist_t* renderQueue)
     break;
     case NODE_PLAYER:
     node = (Node*)PlayerNodeFromJSON(json);
+    break;
     case NODE_COLLISION:
     node = (Node*)ColliderNodeFromJSON(json);
+    break;
   }
   cJSON* children = cJSON_GetObjectItem(json, "children");
   if(children)
@@ -446,5 +449,11 @@ Node* NodeFromJSON(const cJSON* json, dynlist_t* renderQueue)
         NodeAddChild(node, child);
     }
   }
+  if(NodeHasTransform(node))
+  {
+    SpatialNode* spatial = (SpatialNode*)node;
+    SpatialNodeUpdateGlobalTransform(spatial);
+  }
+  printf("poccessed node with name %s \n", node->name);
   return node;
 }
