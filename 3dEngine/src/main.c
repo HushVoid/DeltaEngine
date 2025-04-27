@@ -1,5 +1,7 @@
 #include "allincludes.h"
 #include <minwindef.h>
+#include <string.h>
+#include <winnt.h>
 
 #define WIDTH 1600.0
 #define HEIGHT 900.0
@@ -211,21 +213,39 @@ float skyboxVertices[] = {
   glBindBuffer(GL_UNIFORM_BUFFER, 0);
   glBindBufferBase(GL_UNIFORM_BUFFER, 0, lightUBO);
 
+
+  char directory[MAX_PATH];
+  if(GetModuleFileName(NULL,directory, MAX_PATH) != 0)
+  {
+    char* lastSlash = strrchr(directory, '\\');
+    if(lastSlash != NULL) *lastSlash = '\0';        
+  }
   glBufferData(GL_ARRAY_BUFFER,sizeof(skyboxVertices), skyboxVertices, GL_STATIC_DRAW);
-  printf("kaif\n");
-  dynlist_t* cubemap = dynlistInit(sizeof(char*), 4);
-  char *tx1 = "E:\\projects\\deltaengine\\3dengine\\textures\\right.png\0";
-  char *tx2 = "E:\\projects\\deltaengine\\3dengine\\textures\\left.png\0";
-  char *tx3 = "E:\\projects\\deltaengine\\3dengine\\textures\\top.png\0";
-  char *tx4 = "E:\\projects\\deltaengine\\3dengine\\textures\\bottom.png\0";
-  char *tx5 = "E:\\projects\\deltaengine\\3dengine\\textures\\front.png\0";
-  char *tx6 = "E:\\projects\\deltaengine\\3dengine\\textures\\back.png\0";
-  dynlistPush(cubemap, &tx1);
-  dynlistPush(cubemap, &tx2);
-  dynlistPush(cubemap, &tx3);
-  dynlistPush(cubemap, &tx4);
-  dynlistPush(cubemap, &tx5);
-  dynlistPush(cubemap, &tx6);
+  dynlist_t* cubemap = dynlistInit(sizeof(char[MAX_PATH]), 4);
+  char cubemappath1[MAX_PATH];
+  strcpy_s(cubemappath1, MAX_PATH, directory);
+  strcat_s(cubemappath1, MAX_PATH, "\\textures\\right.png");
+  char cubemappath2[MAX_PATH];
+  strcpy_s(cubemappath2, MAX_PATH, directory);
+  strcat_s(cubemappath2, MAX_PATH, "\\textures\\left.png");
+  char cubemappath3[MAX_PATH];
+  strcpy_s(cubemappath3, MAX_PATH, directory);
+  strcat_s(cubemappath3, MAX_PATH, "\\textures\\top.png");
+  char cubemappath4[MAX_PATH];
+  strcpy_s(cubemappath4, MAX_PATH, directory);
+  strcat_s(cubemappath4, MAX_PATH, "\\textures\\bottom.png");
+  char cubemappath5[MAX_PATH];
+  strcpy_s(cubemappath5, MAX_PATH, directory);
+  strcat_s(cubemappath5, MAX_PATH, "\\textures\\front.png");
+  char cubemappath6[MAX_PATH];
+  strcpy_s(cubemappath6, MAX_PATH, directory);
+  strcat_s(cubemappath6, MAX_PATH, "\\textures\\back.png");
+  dynlistPush(cubemap, cubemappath1);
+  dynlistPush(cubemap, cubemappath2);
+  dynlistPush(cubemap, cubemappath3);
+  dynlistPush(cubemap, cubemappath4);
+  dynlistPush(cubemap, cubemappath5);
+  dynlistPush(cubemap, cubemappath6);
 
   glBindBuffer(GL_ARRAY_BUFFER,0);
   unsigned int skyboxVAO;
@@ -238,10 +258,27 @@ float skyboxVertices[] = {
   unsigned int cubemapTxt = LoadCubemap(cubemap);
 
 
-
-  CreateShader(&modelshader, "E:\\projects\\deltaengine\\3dengine\\shaders\\modelvertex.vs", "E:\\projects\\deltaengine\\3dengine\\shaders\\modelfragment.fs");
-  CreateShader(&skyboxShader, "E:\\projects\\deltaengine\\3dengine\\shaders\\skybox.vs", "E:\\projects\\deltaengine\\3dengine\\shaders\\skybox.fs");
-  CreateShader(&nodeShader, "E:\\projects\\deltaengine\\3dengine\\shaders\\bilboard.vs", "E:\\projects\\deltaengine\\3dengine\\shaders\\bilboard.fs");
+  char modelShaderPathFS[256];
+  char modelShaderPathVS[256];
+  char skyboxShaderPathFS[256];
+  char skyboxShaderPathVS[256];
+  char nodeShaderPathFS[256];
+  char nodeShaderPathVS[256];
+  strcpy_s(modelShaderPathFS, 256, directory);
+  strcpy_s(modelShaderPathVS, 256, directory);
+  strcpy_s(skyboxShaderPathFS, 256, directory);
+  strcpy_s(skyboxShaderPathVS, 256, directory);
+  strcpy_s(nodeShaderPathFS, 256, directory);
+  strcpy_s(nodeShaderPathVS, 256, directory);
+  strcat_s(modelShaderPathVS, 256, "\\shaders\\modelvertex.vs");
+  strcat_s(modelShaderPathFS, 256, "\\shaders\\modelfragment.fs");
+  strcat_s(skyboxShaderPathVS, 256, "\\shaders\\skybox.vs");
+  strcat_s(skyboxShaderPathFS, 256, "\\shaders\\skybox.fs");
+  strcat_s(nodeShaderPathVS, 256, "\\shaders\\bilboard.vs");
+  strcat_s(nodeShaderPathFS, 256, "\\shaders\\bilboard.fs");
+  CreateShader(&modelshader, modelShaderPathVS, modelShaderPathFS);
+  CreateShader(&skyboxShader, skyboxShaderPathVS, skyboxShaderPathFS);
+  CreateShader(&nodeShader, nodeShaderPathVS, nodeShaderPathFS);
   
   GLuint lightsIndex = glGetUniformBlockIndex(modelshader.ID, "Lights");
   glUniformBlockBinding(modelshader.ID, lightsIndex, 0);
@@ -426,7 +463,7 @@ unsigned int LoadCubemap(dynlist_t* faces)
     int width, height, nrChannels;
     for (unsigned int i = 0; i < faces->size; i++)
     { 
-        char* texture = *(char**)dynlistAt(faces, i);
+        const char* texture = dynlistAt(faces, i);
         unsigned char *data = stbi_load(texture, &width, &height, &nrChannels, 0);
         if (data)
         {
