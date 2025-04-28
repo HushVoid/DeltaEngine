@@ -298,16 +298,15 @@ void DrawNodeInspector(Node* node, Scene* scene)
       {      
         static char path_buf[256];
         strcpy_s(path_buf, sizeof(path_buf), model->modelPath);
-        if(ImGui_InputText("Model path", path_buf, sizeof(path_buf), ImGuiInputTextFlags_None))
+        ImGui_InputText("Model path", path_buf, sizeof(path_buf), ImGuiInputTextFlags_None);
+        if(ImGui_Button("reload"))
         {
-          if(ImGui_Button("reload"))
-          {
-            model->modelPath[0] = '\0';
-            strcpy_s(model->modelPath, sizeof(model->modelPath), path_buf);
-            DeleteModel(&model->model);
-            ModelInit(&model->model, path_buf);
-          }
+          model->modelPath[0] = '\0';
+          strcpy_s(model->modelPath, sizeof(model->modelPath), path_buf);
+          DeleteModel(&model->model);
+          ModelInit(&model->model, path_buf);
         }
+        
       }
     }
     if(node->type == NODE_LIGHTD)

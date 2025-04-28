@@ -454,6 +454,5 @@ Node* NodeFromJSON(const cJSON* json, dynlist_t* renderQueue)
     SpatialNode* spatial = (SpatialNode*)node;
     SpatialNodeUpdateGlobalTransform(spatial);
   }
-  printf("poccessed node with name %s \n", node->name);
   return node;
 }

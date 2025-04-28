@@ -2,7 +2,7 @@
 #define MODEL_H
 
 //INTERNAL USE ONLY
-#define MISSING_TEXTURE_PATH "E:\\projects\\deltaengine\\3dengine\\textures\\missing.jpg\0"
+#define MISSING_TEXTURE_PATH "\\textures\\missing.jpg\0"
 
 #include "include/cglm/cglm.h"
 #include "include/GL/glew.h"

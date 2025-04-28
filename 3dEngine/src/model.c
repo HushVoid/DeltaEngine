@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <windows.h>
 
 void ModelInit(Model *model, char *path)
 {
@@ -116,13 +117,22 @@ Mesh* ProcessMesh(Model *model, struct aiMesh *mesh, const struct aiScene *scene
     for(unsigned int j = 0; j < face.mNumIndices; j++)
      dynlistPush(rMesh->indices, &face.mIndices[j]); 
   }
+  char execpath[MAX_PATH];
+  if(GetModuleFileName(NULL,execpath, MAX_PATH) != 0)
+  {
+    char* lastSlash = strrchr(execpath, '\\');
+    if(lastSlash != NULL) *lastSlash = '\0';        
+  }
   if(mesh->mMaterialIndex > 0) 
   {
       struct aiMaterial *material = scene->mMaterials[mesh->mMaterialIndex];
       if(aiGetMaterialTextureCount(material, aiTextureType_DIFFUSE) == 0)
       {
+         char missingPath[256];
+         strcpy_s(missingPath, sizeof(missingPath), execpath);
+         strcat_s(missingPath, sizeof(missingPath), MISSING_TEXTURE_PATH);
          Texture texture;
-         texture.id = TextureFromFile("", MISSING_TEXTURE_PATH);
+         texture.id = TextureFromFile("", missingPath);
          strcpy(texture.type, "texture_diffuse");
          strcpy(texture.path, MISSING_TEXTURE_PATH);
          dynlistPush(rMesh->textures, &texture);
@@ -166,8 +176,11 @@ Mesh* ProcessMesh(Model *model, struct aiMesh *mesh, const struct aiScene *scene
   }
   else 
   {
+         char missingPath[256];
+         strcpy_s(missingPath, sizeof(missingPath), execpath);
+         strcat_s(missingPath, sizeof(missingPath), MISSING_TEXTURE_PATH);
          Texture texture;
-         texture.id = TextureFromFile("", MISSING_TEXTURE_PATH);
+         texture.id = TextureFromFile("", missingPath);
          strcpy(texture.type, "texture_diffuse");
          strcpy(texture.path, MISSING_TEXTURE_PATH);
          dynlistPush(rMesh->textures, &texture);
