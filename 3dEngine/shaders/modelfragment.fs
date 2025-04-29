@@ -17,27 +17,27 @@ struct DirLight {
 };
 
 struct PointLight {
-    vec3 position;      // 12 байт
-    float intensity;    // 4 байта 
-    vec3 color; // 12 байт
-    float padding;
-    float constant;     // 4 байта
-    float linear;       // 4 байта
-    float quadratic;    // 4 байта
+    vec3 position;      // 12 bytes
+    float intensity;    // 4 bytes
+    vec3 color; // 12 bytes
+    float padding;  // 4 bytes
+    float constant;     // 4 bytes
+    float linear;       // 4 bytes
+    float quadratic;    // 4 bytes
     float padding2;
-    vec3 paddingV;// 8 байт (добиваем до 16
-    int id;             // 4 байта
+    vec3 paddingV;// 8 bytes
+    int id;             // 4 bytes
     }; 
     
 struct SpotLight {
-    vec3 direction;     // 12 
-    float innerCutOff;  // 4  (16)
-    vec3 color;         // 12 
-    float outerCutOff;  // 4  (16)
-    vec3 position;
-    float intensity;
-    vec3 paddingV;
-    int id;           // 4
+    vec3 direction;     // 12 bytes
+    float innerCutOff;  // 4  (16)bytes
+    vec3 color;         // 12 bytes
+    float outerCutOff;  // 4  (16)bytes
+    vec3 position;      // 12 bytes
+    float intensity;    // 4 bytes
+    vec3 paddingV;    // 12 bytes
+    int id;           // 4 bytes
 };  
 
 layout (std140) uniform Lights {

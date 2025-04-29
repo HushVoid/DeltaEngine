@@ -151,6 +151,7 @@ int main(int argc, char** argv)
 //stbi
   stbi_set_flip_vertically_on_load(true); 
 
+//loading test scene;
   state.loadedScene = SceneLoad("scenes\\test.scn");
 unsigned int VBO; 
 
@@ -201,8 +202,7 @@ float skyboxVertices[] = {
   glGenBuffers(1,&VBO);
 
 
-  //Lights
-
+  //skybox buffers
   glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
   glGenBuffers(1, &lightUBO);
@@ -213,7 +213,7 @@ float skyboxVertices[] = {
   glBindBuffer(GL_UNIFORM_BUFFER, 0);
   glBindBufferBase(GL_UNIFORM_BUFFER, 0, lightUBO);
 
-
+  //loading skybox texures
   char directory[MAX_PATH];
   if(GetModuleFileName(NULL,directory, MAX_PATH) != 0)
   {
@@ -257,7 +257,7 @@ float skyboxVertices[] = {
   glEnableVertexAttribArray(0);
   unsigned int cubemapTxt = LoadCubemap(cubemap);
 
-
+  //loading shaders 
   char modelShaderPathFS[256];
   char modelShaderPathVS[256];
   char skyboxShaderPathFS[256];
@@ -286,6 +286,7 @@ float skyboxVertices[] = {
   
   float lastTickTime = 0;
   state.deltaTime = 0;
+  //application loop
   while(state.isGameRuning)
   {
     int i = 0;
@@ -314,8 +315,10 @@ void Update(float deltaTime, ImGuiIO* io)
   if(!state.loadedScene)
     return;
       state.keyboardStates = SDL_GetKeyboardState(NULL);
+      //Editing mode camera
       if(state.isMouseLocked && !state.isPlayingModeOn)
       {
+        //wasd movement
         if(isKeyDown(SDL_SCANCODE_W))
           CameraNodeHandleWASD(state.loadedScene->activeCamera, deltaTime, CAMERA_EDIT_FORWARD);
         if(isKeyDown(SDL_SCANCODE_S))
@@ -334,13 +337,16 @@ void Update(float deltaTime, ImGuiIO* io)
       cImGui_ImplSDL2_ProcessEvent(&state.event);
       if(state.event.type == SDL_QUIT)
         state.isGameRuning = false;
+      //Handling mouse motion
       if(state.event.type == SDL_MOUSEMOTION)
       {
         float dx, dy;
         dx = state.event.motion.xrel;
         dy = state.event.motion.yrel;
+        //editing
         if(state.isMouseLocked && !state.isPlayingModeOn) 
           CameraHandleMouse(state.loadedScene->activeCamera, dx, dy, true);
+        //playing
         else if(state.isPlayingModeOn && playModeState.playModePlayer)
         {
           PlayerNodeHandleMouse(playModeState.playModePlayer, playModeState.playModeCamera, dx, dy); 

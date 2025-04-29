@@ -297,7 +297,10 @@ void DrawNodeInspector(Node* node, Scene* scene)
       if(model->shapeType == MODEL_CUSTOM)
       {      
         static char path_buf[256];
-        strcpy_s(path_buf, sizeof(path_buf), model->modelPath);
+        if(ImGui_Button("Show current"))
+        {
+          strcpy_s(path_buf, sizeof(path_buf), model->modelPath);
+        }
         ImGui_InputText("Model path", path_buf, sizeof(path_buf), ImGuiInputTextFlags_None);
         if(ImGui_Button("reload"))
         {
