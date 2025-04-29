@@ -309,6 +309,11 @@ Scene* SceneLoad(const char* path)
     return NULL;
   }
   cJSON* json = cJSON_Parse(json_str);
+  if(!json)
+  {
+    printf("SceneLoad: corupted scene file");
+    return NULL;
+  }
   Scene* scene = SceneCreate(true);
   scene->root = NodeFromJSON(json, scene->renderQueue);
   scene->activeCamera = (CameraNode*)NodeFindChild(scene->root, "MAINCAM", false);
