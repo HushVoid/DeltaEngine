@@ -1,2 +1,2 @@
 HELO THIS IS MY COURSE PROJECT 3D ENGINE MADE WITH SDL + OPENGL3 IT'S VERY VERY JANKY SO YOU CAN LAUGH AT MY CODE AS MUCH AS YOU WANT
-but i'm still learning and that's grate
+but i'm still learning and that's great
